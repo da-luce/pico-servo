@@ -35,7 +35,7 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(pico-servo pico-servo.c )
+add_executable(pico-servo pico-servo.c servo.c)
 
 pico_set_program_name(pico-servo "pico-servo")
 pico_set_program_version(pico-servo "0.1")
@@ -46,7 +46,10 @@ pico_enable_stdio_usb(pico-servo 1)
 
 # Add the standard library to the build
 target_link_libraries(pico-servo
-        pico_stdlib)
+    pico_stdlib
+    hardware_pwm
+    hardware_irq
+    pico_cyw43_arch_none)
 
 # Add the standard include files to the build
 target_include_directories(pico-servo PRIVATE
@@ -55,7 +58,7 @@ target_include_directories(pico-servo PRIVATE
 
 # Add any user requested libraries
 target_link_libraries(pico-servo 
-        
+
         )
 
 pico_add_extra_outputs(pico-servo)
