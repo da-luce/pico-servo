@@ -189,6 +189,9 @@ float ease_out_bounce(float x) {
     }
 }
 
+float ease_in_bounce(float x) {
+    return 1.0f - ease_out_bounce(1.0f - x);
+}
 
 void servo_set_deg_ease(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float))
 {

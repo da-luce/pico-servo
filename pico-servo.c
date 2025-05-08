@@ -23,34 +23,59 @@ Servo servo = {
     .start_angle_deg    = START_ANGLE,
 };
 
+void test_sequence()
+{
+    // Simple stepping sequence
+    bool forward = true;
+    for (float step = 20.0f; step >= 5.0f; step -= 5.0f)
+    {
+        float angle;
+        int sleep_time = 100 * (step / 5.0f);
+        if (forward)
+        {
+            angle = 0.0f;
+            while (angle <= 180.0f)
+            {
+                servo_set_deg(&servo, angle);
+                angle += step;
+                sleep_ms(sleep_time);
+            }
+        } else
+        {
+            angle = 180.0f;
+            while (angle >= 0.0f)
+            {
+                servo_set_deg(&servo, angle);
+                angle -= step;
+                sleep_ms(sleep_time);
+            }
+
+        }
+
+        forward = !forward;
+    }
+
+    servo_set_deg(&servo, 180.0f);
+    sleep_ms(500);
+    servo_set_deg(&servo, 0.0f);
+    sleep_ms(500);
+
+    servo_set_deg_ease(&servo, 180.0f, 1000000, ease_out_bounce);
+    servo_set_deg_ease(&servo, 0.0f, 1000000u, ease_out_bounce);
+
+    servo_set_deg_ease(&servo, 90.0f, 1000000, ease_out_bounce);
+    servo_set_deg_ease(&servo, 180.0f, 1000000u, ease_in_bounce);
+
+    // Because easing is applied inside an interrupt handler,
+    // we need to keep the CPU active long enough to observe the motion
+    sleep_ms(5000);
+}
+
 int main() {
     stdio_init_all();
 
     servo_init(&servo);
+    sleep_ms(200);
 
-    if (cyw43_arch_init()) {
-        printf("Wi-Fi init failed\n");
-        return -1;
-    }
-
-    float angle = 0.0f;           // Start at 0 degrees
-    float step = 15.0f;           // Rotate 30 degrees each time
-
-    while (true) {
-        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-        sleep_ms(250);
-        printf("Servo angle: %.1f\n", angle);
-
-        servo_set_deg(&servo, angle);
-
-        // Increment angle and wrap around at 180
-        angle += step;
-        if (angle > 180.0f) {
-            angle = 0.0f;
-            servo_set_deg_ease(&servo, 0.0f, 1000000u, ease_in_expo);
-        }
-
-        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
-        sleep_ms(100);
-    }
+    test_sequence();
 }

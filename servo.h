@@ -43,6 +43,7 @@ float ease_out_quad(float x);
 float ease_out_expo(float x);
 float ease_in_expo(float x);
 float ease_out_bounce(float x);
+float ease_in_bounce(float x);
 float ease_out_wobble_pop(float x);
 float ease_in_out_sigmoid(float x);
 
