@@ -22,6 +22,7 @@ typedef struct {
     unsigned int duty_min_usec;     // Duty cycle of minumum angle in usec
     unsigned int duty_max_usec;     // Duty cycle of maximum angle in usec
     float start_angle_deg;          // Angle to start at
+    float sec_per_60;               // Speed to move 60 degrees, often used during 
     // These are filled in automatically
     unsigned int slice_num;
     unsigned int channel_num;
@@ -33,7 +34,10 @@ typedef struct {
 void servo_init(Servo* servo);
 void servo_set_rad(Servo* servo, float angle_rad);
 void servo_set_deg(Servo* servo, float angle_deg);
+void servo_set_rad_wait(Servo* servo, float angle_rad);
+void servo_set_deg_wait(Servo* servo, float angle_deg);
 void servo_set_deg_ease(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float));
+void servo_set_deg_ease_wait(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float));
 
 // Easing functions
 float ease_lin(float x);

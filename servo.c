@@ -32,6 +32,9 @@ void servo_init(Servo* servo)
     servo->slice_num = slice_num;
     servo->channel_num = channel_num;
 
+    // Set speed to somethign slow if unset (on the safe side)
+    servo->sec_per_60 = 0.5f;
+
     // Given CLKDIV, figure out how many cycles are required to achieve servo.period_usec
     pwm_set_clkdiv(slice_num, CLKDIV) ;
     unsigned int wrap_val = (servo->clock_freq / CLKDIV) * servo->period_usec / MICRO;
@@ -94,6 +97,25 @@ void servo_set_deg(Servo* servo, float angle_deg)
     servo_set_rad(servo, angle_rad);
 }
 
+int time_ms(float distance, float sec_per_60)
+{
+    return (int) (distance / 60.0f * sec_per_60 * 1000);
+}
+
+void servo_set_rad_wait(Servo* servo, float angle_rad)
+{
+    float angle_deg = angle_rad * 180.0f / M_PI;
+    int wait_ms = time_ms(fabsf(angle_deg - servo->current_angle), servo->sec_per_60);
+    servo_set_rad(servo, angle_rad);
+    sleep_ms(wait_ms);
+}
+
+void servo_set_deg_wait(Servo* servo, float angle_deg)
+{
+    float angle_rad = angle_deg * M_PI / 180.0f;
+    servo_set_rad_wait(servo, angle_rad);
+}
+
 float ease_sin(float x)
 {
     return sinf(x * M_PI / 2.0f);
@@ -113,7 +135,7 @@ float ease_lin(float x)
 }
 
 float ease_out_expo(float x) {
-    return (x >= 1.0f) ? 1.0f : 1 - powf(2.0f, -20.0f * x);
+    return (x >= 1.0f) ? 1.0f : 1 - powf(2.0f, -10.0f * x);
 }
 
 float ease_in_expo(float x) {
@@ -152,7 +174,7 @@ void on_pwm_wrap() {
     {
         // We have reached the end of the motion, no more interrupts
         pwm_set_irq_enabled(servo->slice_num, false);
-        printf("DONE!\n");
+
         servo->current_angle = servo->motion.end_deg;
         // Release the lock
         mutex_exit(&servo->mutex);
@@ -212,4 +234,10 @@ void servo_set_deg_ease(Servo* servo, float angle_deg, unsigned int duration_us,
     servo->motion.start_deg = servo->current_angle;
     servo->motion.end_deg = angle_deg;
     servo->motion.ease_fn = ease_fn;
+}
+
+void servo_set_deg_ease_wait(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float))
+{
+    servo_set_deg_ease(servo, angle_deg, duration_us, ease_fn);
+    sleep_ms(duration_us / 1000);
 }
