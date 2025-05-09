@@ -62,6 +62,9 @@ void servo_set_rad_wait(Servo* servo, float angle_rad);
  */
 void servo_set_deg_wait(Servo* servo, float angle_deg);
 
+/* FIXME: overly slow movements don't move!
+ * e.g. servo_set_deg_ease(&servo, 180.0f, 30 * SEC, ease_lin);
+ */
 /* Schedules the servo movement in degrees over the specified duration using the provided
  * easing function. This function is non-blocking from the caller's perspective:
  * it returns immediately after scheduling. However, it prevents other servo

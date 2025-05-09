@@ -84,8 +84,8 @@ void oscillate_to_center_ease()
         if (left < 0.0f) left = 0.0f;
         if (right > 180.0f) right = 180.0f;
 
-        servo_set_deg_ease(&servo, left, delay_us, EASE_IN_OUT_SIGMOID(50.0f));
-        servo_set_deg_ease(&servo, right, delay_us, EASE_IN_OUT_SIGMOID(50.0f));
+        servo_set_deg_ease(&servo, left, delay_us, ease_sin);
+        servo_set_deg_ease(&servo, right, delay_us, ease_sin);
 
         offset -= decay_step;
         delay_us -= decay_delay;
@@ -141,9 +141,9 @@ void test_sequence()
     servo_set_deg_ease(&servo, 180.0f, SEC / 2, ease_inverse_smoothstep);
     servo_set_deg_ease(&servo, 0.0f, SEC, ease_out_expo); 
 
-    // Because easing is applied inside an interrupt handler,
-    // we need to keep the CPU active long enough to observe the motion
-    sleep_ms(5000); // FIXME: why is this sleep value so off?
+    // Keep the core active for the last movement
+    // TODO: is this a bug on the Pico, should it not be in interrupt wait mode?
+    sleep_ms(1000);
 }
 
 void test_sequence_wait()
@@ -187,10 +187,57 @@ void test_sequence_wait()
     servo_set_deg_ease_wait(&servo, 0.0f, SEC, ease_out_expo); 
 }
 
+bool is_prime(int n) {
+    if (n < 2) return false;
+    for (int i = 2; i <= sqrt(n); i++) {
+        if (n % i == 0) return false;
+    }
+    return true;
+}
+
+int find_nth_prime(int target) {
+    int count = 0;
+    int num = 2;
+
+    while (count < target) {
+        if (is_prime(num)) {
+            count++;
+        }
+        num++;
+    }
+
+    return num - 1;
+}
+
+// Perform initialisation
+int pico_led_init(void) {
+    #if defined(PICO_DEFAULT_LED_PIN)
+        // A device like Pico that uses a GPIO for the LED will define PICO_DEFAULT_LED_PIN
+        // so we can use normal GPIO functionality to turn the led on and off
+        gpio_init(PICO_DEFAULT_LED_PIN);
+        gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+        return PICO_OK;
+    #elif defined(CYW43_WL_GPIO_LED_PIN)
+        // For Pico W devices we need to initialise the driver etc
+        return cyw43_arch_init();
+    #endif
+}
+
+// Turn the led on or off
+void pico_set_led(bool led_on) {
+    #if defined(PICO_DEFAULT_LED_PIN)
+        // Just set the GPIO on or off
+        gpio_put(PICO_DEFAULT_LED_PIN, led_on);
+    #elif defined(CYW43_WL_GPIO_LED_PIN)
+        // Ask the wifi "driver" to set the GPIO on or off
+        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);
+    #endif
+}
+
 int main() {
 
     stdio_init_all();
-
+    pico_led_init();
     servo_init(&servo);
     sleep_ms(500);
 
@@ -198,4 +245,12 @@ int main() {
     oscillate_to_center();
     oscillate_to_center_ease();
     test_sequence_wait();
+
+    // Cool non-blocking demo
+    // The prime should be found before the motor finishes moving (this stops the motor, is that a bug?)
+    // FIXME: sometimes this doesn't work
+    servo_set_deg_ease(&servo, 180.0f, 10 * SEC, ease_lin);
+    int prime = find_nth_prime(25000);
+    printf("Found prime: %d\n", prime);
+    pico_set_led(true);
 }
