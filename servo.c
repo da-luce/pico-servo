@@ -277,12 +277,3 @@ float ease_out_expo(float x) {
 float ease_in_expo(float x) {
     return (x <= 0.0f) ? 0.0f : powf(2.0f, 10.0f * (x - 1.0f));
 }
-
-float ease_in_out_sigmoid(float x) {
-    // Sigmoid centered at 0.5, scaled to fit [0,1]
-    float steepness = 10.0f; // Higher = steeper mid-curve
-    float s = 1.0f / (1.0f + expf(-steepness * (x - 0.5f)));
-    float min = 1.0f / (1.0f + expf(steepness / 2.0f));
-    float max = 1.0f / (1.0f + expf(-steepness / 2.0f));
-    return (s - min) / (max - min); // Normalize to [0,1]
-}

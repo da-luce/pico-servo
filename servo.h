@@ -2,6 +2,7 @@
 #define SERVO_H
 
 #include <stdbool.h>
+#include <math.h>
 
 #include "pico/sync.h"
 
@@ -83,6 +84,16 @@ float ease_in_expo(float x);
 float ease_out_expo(float x);
 float ease_in_bounce(float x);
 float ease_out_bounce(float x);
-float ease_in_out_sigmoid(float x);
+
+#define EASE_IN_OUT_SIGMOID(steepness) \
+    ({ \
+        float sigmoid(float x) { \
+            float s = 1.0f / (1.0f + expf(-(steepness) * (x - 0.5f))); \
+            float min = 1.0f / (1.0f + expf((steepness) / 2.0f)); \
+            float max = 1.0f / (1.0f + expf(-(steepness) / 2.0f)); \
+            return (s - min) / (max - min); \
+        } \
+        sigmoid; \
+    })
 
 #endif
