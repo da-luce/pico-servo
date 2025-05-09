@@ -5,6 +5,7 @@
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
 #include "hardware/irq.h"
+#include "hardware/clocks.h"
 #include "pico/sync.h"
 
 #ifdef CYW43_WL_GPIO_LED_PIN
@@ -41,10 +42,11 @@ typedef signed int fix28 ;
 #define TO_DEG(radians) ((radians) * 180.0f / M_PI )
 #endif
 
-// A clock div that allows for overclocking with PWM
-#define CLKDIV 100.0f
 
-#define MICRO 1e6 // Number of microsecs in a sec
+#define CLKDIV 100.0f   // A clock div that allows for overclocking with PWM
+#define MICRO 1e6       // Number of microsecs in a sec
+
+static uint32_t sys_hz;
 
 static Servo* registered_servos[NUM_PWM_SLICES];
 
@@ -72,9 +74,12 @@ void servo_init(Servo* servo)
     }
     servo->max_rad = TO_RAD(servo->max_degrees);
 
+    // Get the system clock speed
+    sys_hz = clock_get_hz(clk_sys);
+
     // Given CLKDIV, figure out how many cycles are required to achieve servo.period_usec
     pwm_set_clkdiv(slice_num, CLKDIV) ;
-    unsigned int wrap_val = (servo->clock_freq / CLKDIV) * servo->period_usec / MICRO;
+    unsigned int wrap_val = (sys_hz / CLKDIV) * servo->period_usec / MICRO;
     // Max unit16 is 65535, so we need a high clockdiv to allow overclocking
     pwm_set_wrap(slice_num, wrap_val);
 
@@ -108,7 +113,7 @@ void set_rad(Servo* servo, float angle_rad)
     // Set the duty cycle to achieve the angle
     // Map angle to duty cycle
     unsigned int duty_usec = angle_rad / servo->max_rad * (servo->duty_max_usec - servo->duty_min_usec) + servo->duty_min_usec;
-    unsigned int duty_val = (servo->clock_freq / CLKDIV) * duty_usec / MICRO;
+    unsigned int duty_val = (sys_hz / CLKDIV) * duty_usec / MICRO;
     pwm_set_chan_level(servo->slice_num, servo->channel_num, duty_val); 
 
     servo->current_angle = TO_DEG(angle_rad);

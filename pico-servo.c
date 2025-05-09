@@ -6,7 +6,6 @@
 
 #include "servo.h"
 
-#define CLK                         150000000u
 #define SERVO_GPIO                  22u
 #define START_ANGLE                 0.0f
 #define SEC                         1000000u // One second in us, since we do everything in us
@@ -20,7 +19,6 @@
 
 Servo servo = {
     .gpio               = SERVO_GPIO,
-    .clock_freq         = CLK,
     .period_usec        = MG90S_FRAME_PERIOD_USEC,
     .duty_min_usec      = MG90S_PULSE_WIDTH_MIN_USEC,
     .duty_max_usec      = MG90S_PULSE_WIDTH_MAX_USEC,

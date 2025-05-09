@@ -6,7 +6,6 @@
 
 #include "pico/sync.h"
 
-
 // Everthing needed to track a motion between two angles
 typedef struct {
     unsigned int duration_us;
@@ -18,7 +17,6 @@ typedef struct {
 
 typedef struct {
     unsigned int gpio;              // GPIO that servo is attached to
-    unsigned int clock_freq;        // Each servo stores the clock freq that is driving it
     unsigned int period_usec;       // Period of control signal in usec
     unsigned int duty_min_usec;     // Duty cycle of minumum angle in usec
     unsigned int duty_max_usec;     // Duty cycle of maximum angle in usec

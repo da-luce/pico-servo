@@ -2,6 +2,27 @@
 
 This project was tested on [MG90S](https://towerpro.com.tw/product/mg90s-3/) servos and a [Pico 2 W](https://datasheets.raspberrypi.com/picow/pico-2-w-datasheet.pdf). It should work on all other Pico variants, and most standard 180 deg servos.
 
+## Examples
+
+Here's a minimal example showing how to configure and control a servo using the Servo struct:
+
+```c
+#include "servo.h"
+
+Servo servo = {
+    .gpio               = SERVO_GPIO,
+    .period_usec        = 20000u,
+    .duty_min_usec      = 500u,
+    .duty_max_usec      = 2500u,
+};
+
+int main()
+{
+    servo_init(&servo);
+    servo_set_deg(&servo, 90.0f);
+}
+```
+
 ## TODO
 
 - [ ] Add speed control
