@@ -144,6 +144,6 @@ int main() {
     servo_init(&servo);
     sleep_ms(2500);
 
-    test_sequence();
+    // test_sequence();
     test_sequence_wait();
 }

@@ -29,18 +29,6 @@ typedef signed int fix28 ;
 #define mult_fix15(a,b) ((fix15)((((signed long long)(a))*((signed long long)(b)))>>15))
 #define div_fix15(a,b) (fix15)( (((signed long long)(a)) << 15) / (b))
 
-
-// Turn the led on or off
-void pico_set_led(bool led_on) {
-    #if defined(PICO_DEFAULT_LED_PIN)
-        // Just set the GPIO on or off
-        gpio_put(PICO_DEFAULT_LED_PIN, led_on);
-    #elif defined(CYW43_WL_GPIO_LED_PIN)
-        // Ask the wifi "driver" to set the GPIO on or off
-        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);
-    #endif
-}
-
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -252,7 +240,6 @@ float ease_in_bounce(float x) {
 
 void servo_set_deg_ease(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float))
 {
-
     // Wait until we can use the servo
     mutex_enter_blocking(&servo->mutex);
 
@@ -275,14 +262,14 @@ void servo_set_deg_ease_wait(Servo* servo, float angle_deg, unsigned int duratio
 {
     servo_set_deg_ease(servo, angle_deg, duration_us, ease_fn);
 
-    // Interrupts take time! For most easing functions, the max is around 20us
-    // per interrupt (on the RP2350)
-    // TODO: interrupts will be longer on the RP2040 since it doesn't have fp hardware
-    // NOTE: this is no joke! Failing to account for the time of interrupts can cause issues when
-    // (1) Multiple ease_wait functions are called in sequence with (2) no active code after
-    // This is because sleep_ms is implemented with a hardware timer!
-    unsigned int interrupt_time_us = 20u; // FIXME: make this less hacky?
-    unsigned int total_interrupt_time_us = (duration_us * interrupt_time_us) / servo->period_usec;
+    // Sleep for duration
+    sleep_ms(duration_us / 10000);
 
-    sleep_ms((duration_us + total_interrupt_time_us) / 1000);
+    // Since interrupts introduce additional overhead (~20 µs on the RP2350), spin on the mutex
+    // to ensure the motion fully completes. This prevents premature exit in cases where:
+    // (1) multiple ease_wait() calls are made in sequence, and
+    // (2) there is no other code running afterward to absorb the timing error.
+    // NOTE: I'm not 100% sure what is going on here, or if it is a Pico bug.
+    mutex_enter_blocking(&servo->mutex);
+    mutex_exit(&servo->mutex);
 }
