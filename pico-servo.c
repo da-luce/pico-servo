@@ -59,6 +59,7 @@ void oscillate_to_center()
 
     // Finish at center
     servo_set_deg(&servo, center);
+    sleep_ms(250);
 }
 
 
@@ -91,6 +92,7 @@ void oscillate_to_center_ease()
 
     // Finish at center
     servo_set_deg(&servo, center);
+    sleep_ms(250);
 }
 
 
@@ -237,7 +239,7 @@ int main() {
     stdio_init_all();
     pico_led_init();
     servo_init(&servo);
-    sleep_ms(500);
+    sleep_ms(200);
 
     test_sequence();
     oscillate_to_center();
@@ -245,10 +247,15 @@ int main() {
     test_sequence_wait();
 
     // Cool non-blocking demo
-    // The prime should be found before the motor finishes moving (this stops the motor, is that a bug?)
-    // FIXME: sometimes this doesn't work
+    // The prime will be found before the motor finishes moving
     servo_set_deg_ease(&servo, 180.0f, 10 * SEC, ease_lin);
     int prime = find_nth_prime(25000);
     printf("Found prime: %d\n", prime);
     pico_set_led(true);
+
+    // Keep running the system to handle interrupts
+    while (1) {
+        tight_loop_contents();
+    }
+
 }

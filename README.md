@@ -28,9 +28,10 @@ int main()
 ## TODO
 
 - [ ] Iron out edge case bugs (see FIXMEs)
+- [ ] Add ability to interrupt ease functions
 - [ ] Add functions for servos with position feedback
 - [ ] Test other servos
-- [ ] Test multiple servos
+- [ ] Test multiple servos at the same time
 
 ## Easing Functions
 

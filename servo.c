@@ -8,28 +8,6 @@
 #include "hardware/clocks.h"
 #include "pico/sync.h"
 
-#ifdef CYW43_WL_GPIO_LED_PIN
-#include "pico/cyw43_arch.h"
-#endif
-
-// === the fixed point macros ========================================
-// Fixed point to represent radian angles in [0, 2pi]
-// 1 sign, 3 decimal bits (up to 6), 28 fractional bits
-// TODO: make code that generates this...
-typedef signed int fix28 ;
-
-#define fix15_to_float(a) ((float)(a)/32768.0)
-#define float_to_fix15(a) ((fix15)((a)*32768.0)) 
-
-#define fix15_to_int(a) ((int)(a >> 15))
-#define int_to_fix15(a) ((fix15)(a << 15))
-
-#define char_to_fix15(a) (fix15)(((fix15)(a)) << 15)
-
-#define abs_fix15(a) abs(a) 
-#define mult_fix15(a,b) ((fix15)((((signed long long)(a))*((signed long long)(b)))>>15))
-#define div_fix15(a,b) (fix15)( (((signed long long)(a)) << 15) / (b))
-
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -42,60 +20,15 @@ typedef signed int fix28 ;
 #define TO_DEG(radians) ((radians) * 180.0f / M_PI )
 #endif
 
-
 #define CLKDIV 100.0f   // A clock div that allows for overclocking with PWM
 #define MICRO 1e6       // Number of microsecs in a sec
 
 static uint32_t sys_hz;
-
 static Servo* registered_servos[NUM_PWM_SLICES];
 
-void servo_init(Servo* servo)
-{
-    // Tell GPIO it is allocated to the PWM
-    gpio_set_function(servo->gpio, GPIO_FUNC_PWM);
 
-    // Find out which PWM slice is connected to GPIO
-    unsigned int slice_num = pwm_gpio_to_slice_num(servo->gpio);
-    unsigned int channel_num = pwm_gpio_to_channel(servo->gpio);
+/* Simple movement **********************************************************/
 
-    servo->slice_num = slice_num;
-    servo->channel_num = channel_num;
-
-    // Set defaults for unset fields
-    if (!servo->sec_per_60)
-    {
-        // Somethign slow if unset (on the safe side)
-        servo->sec_per_60 = 0.5f;
-    }
-    if (!servo->max_degrees)
-    {
-        servo->max_degrees = 180.0f;
-    }
-    servo->max_rad = TO_RAD(servo->max_degrees);
-
-    // Get the system clock speed
-    sys_hz = clock_get_hz(clk_sys);
-
-    // Given CLKDIV, figure out how many cycles are required to achieve servo.period_usec
-    pwm_set_clkdiv(slice_num, CLKDIV) ;
-    unsigned int wrap_val = (sys_hz / CLKDIV) * servo->period_usec / MICRO;
-    // Max unit16 is 65535, so we need a high clockdiv to allow overclocking
-    pwm_set_wrap(slice_num, wrap_val);
-
-    mutex_init(&servo->mutex);
-
-    // Set the duty cycle to the starting angle
-    servo_set_deg(servo, servo->start_angle_deg);
-
-    // Track this servo
-    registered_servos[servo->slice_num] = servo;
-
-    // Start the pwm
-    pwm_set_enabled(servo->slice_num, true);
-
-    servo->current_angle = servo->start_angle_deg;
-}
 
 /* Private. Uprotected: sets the servo angle in radians without checking the
  * mutex.
@@ -161,24 +94,16 @@ void servo_set_deg_wait(Servo* servo, float angle_deg)
     servo_set_rad_wait(servo, TO_RAD(angle_deg));
 }
 
-void on_pwm_wrap() {
 
+/* Easing functions ***********************************************************/
+
+
+void handle_servo_irq_for_slice(int slice)
+{
     // FIXME: this could be made faster (fixed point arithmetic)
 
-    // Determine which PWM slice has fired
-    int pwm = 0;
-    for (int p = 0; p < NUM_PWM_SLICES; p++) {
-        if (pwm_get_irq_status_mask() & (1 << p)) {
-            pwm = p;
-            break;
-        }
-    }
-
-    // Clear the interrupt flag that brought us here
-    pwm_clear_irq(pwm);
-
-    // Get the servo associated with this PWM
-    Servo* servo = registered_servos[pwm];
+    // Get the servo associated with this slice
+    Servo* servo = registered_servos[slice];
 
     // Determine how far we are into the motion
     servo->motion.current_time_us += servo->period_usec;
@@ -204,6 +129,23 @@ void on_pwm_wrap() {
     set_deg(servo, angle);
 }
 
+void on_pwm_wrap() {
+
+    // Get the IRQ status mask
+    uint32_t irq_status = pwm_get_irq_status_mask();
+
+    // Check each slice and handle if its IRQ is set
+    for (int slice = 0; slice < NUM_PWM_SLICES; ++slice) {
+        if (irq_status & (1u << slice)) {
+            // Clear the interrupt flag that brought us here
+            pwm_clear_irq(slice);
+
+            // Handle this particular slice
+            handle_servo_irq_for_slice(slice);
+        }
+    }
+}
+
 void servo_set_deg_ease(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float))
 {
     // Wait until we can use the servo
@@ -213,8 +155,6 @@ void servo_set_deg_ease(Servo* servo, float angle_deg, unsigned int duration_us,
     // and register our interrupt handler
     pwm_clear_irq(servo->slice_num);
     pwm_set_irq_enabled(servo->slice_num, true);
-    irq_set_exclusive_handler(PWM_DEFAULT_IRQ_NUM(), on_pwm_wrap);
-    irq_set_enabled(PWM_DEFAULT_IRQ_NUM(), true);
 
     // Set the motion
     servo->motion.current_time_us = 0u;
@@ -234,15 +174,73 @@ void servo_set_deg_ease_wait(Servo* servo, float angle_deg, unsigned int duratio
     sleep_us(duration_us);
 
     // Since interrupts introduce additional overhead (~20 µs on the RP2350), spin on the mutex
-    // to ensure the motion fully completes. This prevents premature exit in cases where:
-    // (1) multiple ease_wait() calls are made in sequence, and
-    // (2) there is no other code running afterward to absorb the timing error.
-    // NOTE: I'm not 100% sure what is going on here, or if it is a Pico bug.
+    // to ensure the motion fully completes. I.e., if main exits, no further interrupts will
+    // be handled. This is only a problem if this is the last code to run in the program. Even if not,
+    // we want to avoid timing issues between mutiple sequential ease_wait calls
     mutex_enter_blocking(&servo->mutex);
     mutex_exit(&servo->mutex);
 }
 
-// Easing functions ////////////////////////////////////////////////////////////
+
+/* Init ***********************************************************************/
+
+
+void servo_init(Servo* servo)
+{
+    // Tell GPIO it is allocated to the PWM
+    gpio_set_function(servo->gpio, GPIO_FUNC_PWM);
+
+    // Find out which PWM slice is connected to GPIO
+    unsigned int slice_num = pwm_gpio_to_slice_num(servo->gpio);
+    unsigned int channel_num = pwm_gpio_to_channel(servo->gpio);
+
+    servo->slice_num = slice_num;
+    servo->channel_num = channel_num;
+
+    // Set defaults for unset fields
+    if (!servo->sec_per_60)
+    {
+        // Stay on the safe side and use somethign slow if unset
+        servo->sec_per_60 = 0.5f;
+    }
+    if (!servo->max_degrees)
+    {
+        servo->max_degrees = 180.0f;
+    }
+    servo->max_rad = TO_RAD(servo->max_degrees);
+
+    // Determine the wrap value of the PWM
+
+    sys_hz = clock_get_hz(clk_sys);
+    // Given CLKDIV, figure out how many cycles are required to achieve servo.period_usec
+    pwm_set_clkdiv(slice_num, CLKDIV) ;
+    unsigned int wrap_val = (sys_hz / CLKDIV) * servo->period_usec / MICRO;
+    // Max unit16 is 65535, so we need a high clockdiv to work with overclocking
+    pwm_set_wrap(slice_num, wrap_val);
+
+    // Initialize the servo mutex
+    mutex_init(&servo->mutex);
+
+    // Register interrupt handler at NVIC level
+    irq_set_exclusive_handler(PWM_DEFAULT_IRQ_NUM(), on_pwm_wrap);
+    // Disable interrupts for all slices
+    irq_set_enabled(PWM_DEFAULT_IRQ_NUM(), true);
+    for (int i = 0; i < NUM_PWM_SLICES; i++)
+    {
+        pwm_set_irq_enabled(i, false);
+    }
+
+    // Track this servo globally
+    registered_servos[servo->slice_num] = servo;
+
+    // Set the duty cycle to the starting angle and start
+    servo_set_deg(servo, servo->start_angle_deg);
+    pwm_set_enabled(servo->slice_num, true);
+}
+
+
+/* Easing functions ***********************************************************/
+
 
 float ease_lin(float x)
 {
