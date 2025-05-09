@@ -10,7 +10,7 @@ Here's a minimal example showing how to configure and control a servo using the 
 #include "servo.h"
 
 Servo servo = {
-    .gpio               = SERVO_GPIO,
+    .gpio               = 22,
     .period_usec        = 20000u,
     .duty_min_usec      = 500u,
     .duty_max_usec      = 2500u,
