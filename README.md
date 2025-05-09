@@ -1,4 +1,6 @@
-# Pico Servo Driver
+# ⚙️ Pico Servo Driver
+
+A small, efficient, and robust library designed for controlling servos on the RP2040/2350. It comes with useful features like easing and more, allowing you to easily integrate precise servo control into your projects.
 
 This project was tested on [MG90S](https://towerpro.com.tw/product/mg90s-3/) servos and a [Pico 2 W](https://datasheets.raspberrypi.com/picow/pico-2-w-datasheet.pdf). It should work on all other Pico variants, and most standard 180 deg servos.
 
@@ -25,7 +27,10 @@ int main()
 
 ## TODO
 
-- [ ] Add speed control
+- [ ] Iron out edge case bugs (see FIXMEs)
+- [ ] Add functions for servos with position feedback
+- [ ] Test other servos
+- [ ] Test multiple servos
 
 ## Easing Functions
 
