@@ -137,8 +137,8 @@ void test_sequence()
     servo_set_deg_ease(&servo, 0.0f, SEC, ease_out_bounce);
 
     servo_set_deg_ease(&servo, 180.0f, SEC, ease_in_expo);
-    servo_set_deg_ease(&servo, 0.0f, SEC / 2, ease_inverse_smoothstep);
-    servo_set_deg_ease(&servo, 180.0f, SEC / 2, ease_inverse_smoothstep);
+    servo_set_deg_ease(&servo, 0.0f, SEC, ease_inverse_smoothstep);
+    servo_set_deg_ease(&servo, 180.0f, SEC, ease_inverse_smoothstep);
     servo_set_deg_ease(&servo, 0.0f, SEC, ease_out_expo); 
 
     // Keep the core active for the last movement
@@ -182,8 +182,8 @@ void test_sequence_wait()
     servo_set_deg_ease_wait(&servo, 0.0f, SEC, ease_out_bounce);
 
     servo_set_deg_ease_wait(&servo, 180.0f, SEC, ease_in_expo);
-    servo_set_deg_ease_wait(&servo, 0.0f, SEC / 2, ease_inverse_smoothstep);
-    servo_set_deg_ease_wait(&servo, 180.0f, SEC / 2, ease_inverse_smoothstep);
+    servo_set_deg_ease_wait(&servo, 0.0f, SEC, ease_inverse_smoothstep);
+    servo_set_deg_ease_wait(&servo, 180.0f, SEC, ease_inverse_smoothstep);
     servo_set_deg_ease_wait(&servo, 0.0f, SEC, ease_out_expo); 
 }
 

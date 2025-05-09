@@ -41,7 +41,7 @@ int main()
     servo_set_deg_ease_wait(&servo, 180.0f, 2 * SEC, ease_in_expo);
     servo_set_deg_ease_wait(&servo, 0.0f, SEC, ease_inverse_smoothstep);
     servo_set_deg_ease_wait(&servo, 180.0f, SEC, ease_inverse_smoothstep);
-    servo_set_deg_ease_wait(&servo, 0.0f, 2 * SEC, ease_out_expo); 
+    servo_set_deg_ease_wait(&servo, 0.0f, 2 * SEC, ease_out_expo);
 }
 ```
 
@@ -74,12 +74,10 @@ Warning: the speed of a servo is dependent not only it's formal specification, b
 ## Important Notes
 
 - Each servo must use a GPIO mapped to a unique [PWM slice](https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf#%5B%7B%22num%22%3A1077%2C%22gen%22%3A0%7D%2C%7B%22name%22%3A%22XYZ%22%7D%2C115%2C165.63628%2Cnull%5D)
-- Servos must be configured to use GPIOs on separate 
+- Servos must be configured to use GPIOs on separate
 - While the Pico exposes 24 PWM channels, only 12 independent slices are available—this library supports up to 12 servos.
 - It's your responsibility to ensure that servos are not commanded beyond their mechanical speed or range limits
 - If you are using PWM IRQs for other purposes, register your IRQ handler after
   initializing all servos and call `servo_on_pwm_wrap()` at the top of your handler (this is untested)
 
 ## Miscellanous
-
-- 
