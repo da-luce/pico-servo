@@ -192,8 +192,13 @@ int main() {
     servo_init(&servo);
     sleep_ms(500);
 
-    test_sequence();
-    oscillate_to_center();
-    oscillate_to_center_ease();
-    test_sequence_wait();
+    servo_set_deg_ease_wait(&servo, 180.0f, SEC, ease_in_expo);
+    servo_set_deg_ease_wait(&servo, 0.0f, SEC / 2, ease_inverse_smoothstep);
+    servo_set_deg_ease_wait(&servo, 180.0f, SEC / 2, ease_inverse_smoothstep);
+    servo_set_deg_ease_wait(&servo, 0.0f, SEC, ease_out_expo); 
+
+    // test_sequence();
+    // oscillate_to_center();
+    // oscillate_to_center_ease();
+    // test_sequence_wait();
 }

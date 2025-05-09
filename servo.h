@@ -96,4 +96,6 @@ float ease_out_bounce(float x);
         sigmoid; \
     })
 
+float ease_inverse_smoothstep(float x);
+
 #endif

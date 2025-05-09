@@ -277,3 +277,11 @@ float ease_out_expo(float x) {
 float ease_in_expo(float x) {
     return (x <= 0.0f) ? 0.0f : powf(2.0f, 10.0f * (x - 1.0f));
 }
+
+float ease_inverse_smoothstep(float x)
+{
+    if (x <= 0.0f) return 0.0f;
+    if (x >= 1.0f) return 1.0f;
+    float clamped = 1.0f - 2.0f * x;
+    return 0.5f - sinf(asinf(clamped) / 3.0f);
+}
