@@ -33,6 +33,14 @@ typedef signed int fix28 ;
 #define M_PI 3.14159265358979323846
 #endif
 
+#ifndef TO_RAD
+#define TO_RAD(degrees) ((degrees) * M_PI / 180.0f)
+#endif
+
+#ifndef TO_DEG
+#define TO_DEG(radians) ((radians) * 180.0f / M_PI )
+#endif
+
 // A clock div that allows for overclocking with PWM
 #define CLKDIV 100.0f
 
@@ -62,6 +70,7 @@ void servo_init(Servo* servo)
     {
         servo->max_degrees = 180.0f;
     }
+    servo->max_rad = TO_RAD(servo->max_degrees);
 
     // Given CLKDIV, figure out how many cycles are required to achieve servo.period_usec
     pwm_set_clkdiv(slice_num, CLKDIV) ;
@@ -91,18 +100,18 @@ void set_rad(Servo* servo, float angle_rad)
     if (angle_rad < 0.0f)
     {
         angle_rad = 0.0f;
-    } else if (angle_rad > M_PI)
+    } else if (angle_rad > servo->max_rad)
     {
-        angle_rad = M_PI;
+        angle_rad = servo->max_rad;
     }
 
     // Set the duty cycle to achieve the angle
     // Map angle to duty cycle
-    unsigned int duty_usec = angle_rad / M_PI * (servo->duty_max_usec - servo->duty_min_usec) + servo->duty_min_usec;
+    unsigned int duty_usec = angle_rad / servo->max_rad * (servo->duty_max_usec - servo->duty_min_usec) + servo->duty_min_usec;
     unsigned int duty_val = (servo->clock_freq / CLKDIV) * duty_usec / MICRO;
     pwm_set_chan_level(servo->slice_num, servo->channel_num, duty_val); 
 
-    servo->current_angle = angle_rad * 180.0 / M_PI;
+    servo->current_angle = TO_DEG(angle_rad);
 }
 
 /* Private. Uprotected: sets the servo angle in degrees without checking the
@@ -110,8 +119,7 @@ void set_rad(Servo* servo, float angle_rad)
  */
 void set_deg(Servo* servo, float angle_deg)
 {
-    float angle_rad = angle_deg * M_PI / 180.0f;
-    set_rad(servo, angle_rad);
+    set_rad(servo, TO_RAD(angle_deg));
 }
 
 void servo_set_rad(Servo* servo, float angle_rad)
@@ -127,27 +135,25 @@ void servo_set_rad(Servo* servo, float angle_rad)
 
 void servo_set_deg(Servo* servo, float angle_deg)
 {
-    float angle_rad = angle_deg * M_PI / 180.0f;
-    servo_set_rad(servo, angle_rad);
+    servo_set_rad(servo, TO_RAD(angle_deg));
 }
 
-int time_ms(float distance, float sec_per_60)
+int time_to_move_ms(float distance_deg, float sec_per_60_deg)
 {
-    return (int) (distance / 60.0f * sec_per_60 * 1000);
+    return (int) (distance_deg / 60.0f * sec_per_60_deg * 1000);
 }
 
 void servo_set_rad_wait(Servo* servo, float angle_rad)
 {
-    float angle_deg = angle_rad * 180.0f / M_PI;
-    int wait_ms = time_ms(fabsf(angle_deg - servo->current_angle), servo->sec_per_60);
+    float angle_deg = TO_DEG(angle_rad);
+    int wait_ms = time_to_move_ms(fabsf(angle_deg - servo->current_angle), servo->sec_per_60);
     servo_set_rad(servo, angle_rad);
     sleep_ms(wait_ms);
 }
 
 void servo_set_deg_wait(Servo* servo, float angle_deg)
 {
-    float angle_rad = angle_deg * M_PI / 180.0f;
-    servo_set_rad_wait(servo, angle_rad);
+    servo_set_rad_wait(servo, TO_RAD(angle_deg));
 }
 
 void on_pwm_wrap() {
@@ -278,6 +284,8 @@ float ease_in_expo(float x) {
     return (x <= 0.0f) ? 0.0f : powf(2.0f, 10.0f * (x - 1.0f));
 }
 
+/* IMPORTANT: this must be clamped!
+ */
 float ease_inverse_smoothstep(float x)
 {
     if (x <= 0.0f) return 0.0f;

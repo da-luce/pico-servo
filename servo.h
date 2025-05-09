@@ -26,6 +26,7 @@ typedef struct {
     float sec_per_60;               // Speed to move 60 degrees (Defaults to 0.5)
     float max_degrees;              // Maximum allowable rotation angle of the servo in degrees  (Defaults to 180)
     // These are filled in automatically
+    float max_rad;
     unsigned int slice_num;
     unsigned int channel_num;
     volatile float current_angle;   // Track current angle
