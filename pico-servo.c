@@ -14,7 +14,7 @@
 #define MG90S_FRAME_PERIOD_USEC     10000u  // 10 ms (running at 2 x 50 Hz)
 #define MG90S_PULSE_WIDTH_MIN_USEC  500u    // 0.5 ms
 #define MG90S_PULSE_WIDTH_MAX_USEC  2500u   // 2.5 ms
-#define MG90S_SEC_PER_60            0.1f
+#define MG90S_SEC_PER_60            0.5f    // Setting this slower as I don't have a legit MG90S
 
 Servo servo = {
     .gpio               = SERVO_GPIO,

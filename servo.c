@@ -40,8 +40,6 @@ typedef signed int fix28 ;
 
 static Servo* registered_servos[NUM_PWM_SLICES];
 
-/* WARNING: this may not work for very high frequency clocks with low frequency servos
- */
 void servo_init(Servo* servo)
 {
     // Tell GPIO it is allocated to the PWM
@@ -54,8 +52,16 @@ void servo_init(Servo* servo)
     servo->slice_num = slice_num;
     servo->channel_num = channel_num;
 
-    // Set speed to somethign slow if unset (on the safe side)
-    servo->sec_per_60 = 0.5f;
+    // Set defaults for unset fields
+    if (!servo->sec_per_60)
+    {
+        // Somethign slow if unset (on the safe side)
+        servo->sec_per_60 = 0.5f;
+    }
+    if (!servo->max_degrees)
+    {
+        servo->max_degrees = 180.0f;
+    }
 
     // Given CLKDIV, figure out how many cycles are required to achieve servo.period_usec
     pwm_set_clkdiv(slice_num, CLKDIV) ;
@@ -77,6 +83,9 @@ void servo_init(Servo* servo)
     servo->current_angle = servo->start_angle_deg;
 }
 
+/* Private. Uprotected: sets the servo angle in radians without checking the
+ * mutex.
+ */
 void set_rad(Servo* servo, float angle_rad)
 {
     if (angle_rad < 0.0f)
@@ -96,6 +105,9 @@ void set_rad(Servo* servo, float angle_rad)
     servo->current_angle = angle_rad * 180.0 / M_PI;
 }
 
+/* Private. Uprotected: sets the servo angle in degrees without checking the
+ * mutex.
+ */
 void set_deg(Servo* servo, float angle_deg)
 {
     float angle_rad = angle_deg * M_PI / 180.0f;
@@ -138,44 +150,11 @@ void servo_set_deg_wait(Servo* servo, float angle_deg)
     servo_set_rad_wait(servo, angle_rad);
 }
 
-float ease_sin(float x)
-{
-    return sinf(x * M_PI / 2.0f);
-}
-
-float ease_in_quad(float x) {
-    return x * x;
-}
-
-float ease_out_quad(float x) {
-    return 1.0f - (1.0f - x) * (1.0f - x);
-}
-
-float ease_lin(float x)
-{
-    return x;
-}
-
-float ease_out_expo(float x) {
-    return (x >= 1.0f) ? 1.0f : 1 - powf(2.0f, -10.0f * x);
-}
-
-float ease_in_expo(float x) {
-    return (x <= 0.0f) ? 0.0f : powf(2.0f, 10.0f * (x - 1.0f));
-}
-
-float ease_in_out_sigmoid(float x) {
-    // Sigmoid centered at 0.5, scaled to fit [0,1]
-    float steepness = 10.0f; // Higher = steeper mid-curve
-    float s = 1.0f / (1.0f + expf(-steepness * (x - 0.5f)));
-    float min = 1.0f / (1.0f + expf(steepness / 2.0f));
-    float max = 1.0f / (1.0f + expf(-steepness / 2.0f));
-    return (s - min) / (max - min); // Normalize to [0,1]
-}
-
 void on_pwm_wrap() {
 
-    // Find which PWM slice has fired
+    // FIXME: this could be made faster (fixed point arithmetic)
+
+    // Determine which PWM slice has fired
     int pwm = 0;
     for (int p = 0; p < NUM_PWM_SLICES; p++) {
         if (pwm_get_irq_status_mask() & (1 << p)) {
@@ -208,15 +187,68 @@ void on_pwm_wrap() {
     // Otherwise, set the next angle
     float t = (float) servo->motion.current_time_us /  (float) servo->motion.duration_us;
     float angle = servo->motion.start_deg + servo->motion.ease_fn(t) * (servo->motion.end_deg - servo->motion.start_deg);
+
+    // IMPORTANT: Make sure to use the unprotected function call, otherwise we
+    // spin here forever becuase we already have the mutex!
     set_deg(servo, angle);
 }
 
-float ease_out_wobble_pop(float x) {
-    // Combines smoothstep curve with a sine wobble and overshoot
-    float overshoot = 1.05f;
-    float smooth = x * x * (3.0f - 2.0f * x);  // Smoothstep
-    float wobble = sinf(8.0f * M_PI * x) * (1.0f - x) * 0.1f;  // Diminishing wobble
-    return smooth * overshoot + wobble;
+void servo_set_deg_ease(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float))
+{
+    // Wait until we can use the servo
+    mutex_enter_blocking(&servo->mutex);
+
+    // Mask our slice's IRQ output into the PWM block's single interrupt line,
+    // and register our interrupt handler
+    pwm_clear_irq(servo->slice_num);
+    pwm_set_irq_enabled(servo->slice_num, true);
+    irq_set_exclusive_handler(PWM_DEFAULT_IRQ_NUM(), on_pwm_wrap);
+    irq_set_enabled(PWM_DEFAULT_IRQ_NUM(), true);
+
+    // Set the motion
+    servo->motion.current_time_us = 0u;
+    servo->motion.duration_us = duration_us;
+    servo->motion.start_deg = servo->current_angle;
+    servo->motion.end_deg = angle_deg;
+    servo->motion.ease_fn = ease_fn;
+
+    // The mutex will be freed by the interrupt handler once the motion has ended
+}
+
+void servo_set_deg_ease_wait(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float))
+{
+    servo_set_deg_ease(servo, angle_deg, duration_us, ease_fn);
+
+    // Sleep for duration
+    sleep_us(duration_us);
+
+    // Since interrupts introduce additional overhead (~20 µs on the RP2350), spin on the mutex
+    // to ensure the motion fully completes. This prevents premature exit in cases where:
+    // (1) multiple ease_wait() calls are made in sequence, and
+    // (2) there is no other code running afterward to absorb the timing error.
+    // NOTE: I'm not 100% sure what is going on here, or if it is a Pico bug.
+    mutex_enter_blocking(&servo->mutex);
+    mutex_exit(&servo->mutex);
+}
+
+// Easing functions ////////////////////////////////////////////////////////////
+
+float ease_lin(float x)
+{
+    return x;
+}
+
+float ease_sin(float x)
+{
+    return sinf(x * M_PI / 2.0f);
+}
+
+float ease_in_quad(float x) {
+    return x * x;
+}
+
+float ease_out_quad(float x) {
+    return 1.0f - (1.0f - x) * (1.0f - x);
 }
 
 float ease_out_bounce(float x) {
@@ -238,38 +270,19 @@ float ease_in_bounce(float x) {
     return 1.0f - ease_out_bounce(1.0f - x);
 }
 
-void servo_set_deg_ease(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float))
-{
-    // Wait until we can use the servo
-    mutex_enter_blocking(&servo->mutex);
-
-    // Mask our slice's IRQ output into the PWM block's single interrupt line,
-    // and register our interrupt handler
-    pwm_clear_irq(servo->slice_num);
-    pwm_set_irq_enabled(servo->slice_num, true);
-    irq_set_exclusive_handler(PWM_DEFAULT_IRQ_NUM(), on_pwm_wrap);
-    irq_set_enabled(PWM_DEFAULT_IRQ_NUM(), true);
-
-    // Set the motion
-    servo->motion.current_time_us = 0u;
-    servo->motion.duration_us = duration_us;
-    servo->motion.start_deg = servo->current_angle;
-    servo->motion.end_deg = angle_deg;
-    servo->motion.ease_fn = ease_fn;
+float ease_out_expo(float x) {
+    return (x >= 1.0f) ? 1.0f : 1 - powf(2.0f, -10.0f * x);
 }
 
-void servo_set_deg_ease_wait(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float))
-{
-    servo_set_deg_ease(servo, angle_deg, duration_us, ease_fn);
+float ease_in_expo(float x) {
+    return (x <= 0.0f) ? 0.0f : powf(2.0f, 10.0f * (x - 1.0f));
+}
 
-    // Sleep for duration
-    sleep_ms(duration_us / 10000);
-
-    // Since interrupts introduce additional overhead (~20 µs on the RP2350), spin on the mutex
-    // to ensure the motion fully completes. This prevents premature exit in cases where:
-    // (1) multiple ease_wait() calls are made in sequence, and
-    // (2) there is no other code running afterward to absorb the timing error.
-    // NOTE: I'm not 100% sure what is going on here, or if it is a Pico bug.
-    mutex_enter_blocking(&servo->mutex);
-    mutex_exit(&servo->mutex);
+float ease_in_out_sigmoid(float x) {
+    // Sigmoid centered at 0.5, scaled to fit [0,1]
+    float steepness = 10.0f; // Higher = steeper mid-curve
+    float s = 1.0f / (1.0f + expf(-steepness * (x - 0.5f)));
+    float min = 1.0f / (1.0f + expf(steepness / 2.0f));
+    float max = 1.0f / (1.0f + expf(-steepness / 2.0f));
+    return (s - min) / (max - min); // Normalize to [0,1]
 }
