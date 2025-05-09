@@ -2,7 +2,9 @@
 
 A small, efficient, and robust library designed for controlling servos on the RP2040/2350. It comes with useful features like easing and more, allowing you to easily integrate precise servo control into your projects.
 
-This project was tested on [MG90S](https://towerpro.com.tw/product/mg90s-3/) servos and a [Pico 2 W](https://datasheets.raspberrypi.com/picow/pico-2-w-datasheet.pdf). It should work on all other Pico variants, and most standard 180 deg servos.
+This project was tested on [MG90S](https://towerpro.com.tw/product/mg90s-3/) servos and a [Pico 2 W](https://datasheets.raspberrypi.com/picow/pico-2-w-datasheet.pdf). It should work on all other Pico variants, and most servos.
+
+![MG90S servo performing a test sequence](media/servo.gif)
 
 ## Examples
 
@@ -22,6 +24,24 @@ int main()
 {
     servo_init(&servo);
     servo_set_deg(&servo, 90.0f);
+}
+```
+
+A key feature of this library is its support for smooth, eased servo motions using interpolation functions:
+
+```c
+// Same setup as above...
+
+#define SEC 1000000u // One second in microseconds
+
+int main()
+{
+    servo_init(&servo);
+
+    servo_set_deg_ease_wait(&servo, 180.0f, 2 * SEC, ease_in_expo);
+    servo_set_deg_ease_wait(&servo, 0.0f, SEC, ease_inverse_smoothstep);
+    servo_set_deg_ease_wait(&servo, 180.0f, SEC, ease_inverse_smoothstep);
+    servo_set_deg_ease_wait(&servo, 0.0f, 2 * SEC, ease_out_expo); 
 }
 ```
 
