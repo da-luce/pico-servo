@@ -11,7 +11,7 @@
 #define START_ANGLE                 0.0f
 
 // MG90S constants
-#define MG90S_FRAME_PERIOD_USEC     10000u  // 10 ms (running at 2 x 50 Hz)
+#define MG90S_FRAME_PERIOD_USEC     20000u  // 10 ms (running at 2 x 50 Hz)
 #define MG90S_PULSE_WIDTH_MIN_USEC  500u    // 0.5 ms
 #define MG90S_PULSE_WIDTH_MAX_USEC  2500u   // 2.5 ms
 #define MG90S_SEC_PER_60            0.1f
@@ -119,15 +119,31 @@ void test_sequence_wait()
     servo_set_deg_ease_wait(&servo, 0.0f, 2000000u, ease_in_expo);
     servo_set_deg_ease_wait(&servo, 180.0f, 2000000u, ease_out_expo);
     servo_set_deg_ease_wait(&servo, 0.0f, 2000000u, ease_in_expo); // FIXME: doesn't finish completely
+    // Need like 20ms to get this to finish
 }
 
+// Perform initialisation
+int pico_led_init(void) {
+    #if defined(PICO_DEFAULT_LED_PIN)
+        // A device like Pico that uses a GPIO for the LED will define PICO_DEFAULT_LED_PIN
+        // so we can use normal GPIO functionality to turn the led on and off
+        gpio_init(PICO_DEFAULT_LED_PIN);
+        gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+        return PICO_OK;
+    #elif defined(CYW43_WL_GPIO_LED_PIN)
+        // For Pico W devices we need to initialise the driver etc
+        return cyw43_arch_init();
+    #endif
+}
 
 int main() {
+
     stdio_init_all();
+    int rc = pico_led_init();
 
     servo_init(&servo);
-    sleep_ms(200);
+    sleep_ms(2500);
 
-    test_sequence();
+    // test_sequence();
     test_sequence_wait();
 }

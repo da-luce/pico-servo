@@ -7,6 +7,40 @@
 #include "hardware/irq.h"
 #include "pico/sync.h"
 
+#ifdef CYW43_WL_GPIO_LED_PIN
+#include "pico/cyw43_arch.h"
+#endif
+
+// === the fixed point macros ========================================
+// Fixed point to represent radian angles in [0, 2pi]
+// 1 sign, 3 decimal bits (up to 6), 28 fractional bits
+// TODO: make code that generates this...
+typedef signed int fix28 ;
+
+#define fix15_to_float(a) ((float)(a)/32768.0)
+#define float_to_fix15(a) ((fix15)((a)*32768.0)) 
+
+#define fix15_to_int(a) ((int)(a >> 15))
+#define int_to_fix15(a) ((fix15)(a << 15))
+
+#define char_to_fix15(a) (fix15)(((fix15)(a)) << 15)
+
+#define abs_fix15(a) abs(a) 
+#define mult_fix15(a,b) ((fix15)((((signed long long)(a))*((signed long long)(b)))>>15))
+#define div_fix15(a,b) (fix15)( (((signed long long)(a)) << 15) / (b))
+
+
+// Turn the led on or off
+void pico_set_led(bool led_on) {
+    #if defined(PICO_DEFAULT_LED_PIN)
+        // Just set the GPIO on or off
+        gpio_put(PICO_DEFAULT_LED_PIN, led_on);
+    #elif defined(CYW43_WL_GPIO_LED_PIN)
+        // Ask the wifi "driver" to set the GPIO on or off
+        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);
+    #endif
+}
+
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -175,15 +209,16 @@ void on_pwm_wrap() {
         // We have reached the end of the motion, no more interrupts
         pwm_set_irq_enabled(servo->slice_num, false);
 
+        // Update the current angle
         servo->current_angle = servo->motion.end_deg;
-        // Release the lock
+
+        // Release the lock and exit
         mutex_exit(&servo->mutex);
         return;
     }
 
-    // Else, set the next angle
+    // Otherwise, set the next angle
     float t = (float) servo->motion.current_time_us /  (float) servo->motion.duration_us;
-    // printf("%f", t);
     float angle = servo->motion.start_deg + servo->motion.ease_fn(t) * (servo->motion.end_deg - servo->motion.start_deg);
     set_deg(servo, angle);
 }
@@ -239,5 +274,14 @@ void servo_set_deg_ease(Servo* servo, float angle_deg, unsigned int duration_us,
 void servo_set_deg_ease_wait(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float))
 {
     servo_set_deg_ease(servo, angle_deg, duration_us, ease_fn);
-    sleep_ms(duration_us / 1000);
+
+    // Interrupts take time! For most easing functions, the max is around 20us
+    // per interrupt (on the RP2350)
+    // TODO: interrupts will be longer on the RP2040 since it doesn't have fp hardware
+    // NOTE: this is no joke! Failing to account for the time of interrupts causes the angle to not be set!
+    // This is because sleep_ms is implemented with a hardware timer!
+    unsigned int interrupt_time_us = 20u;
+    unsigned int total_interrupt_time_us = (duration_us * interrupt_time_us) / servo->period_usec;
+
+    sleep_ms((duration_us + total_interrupt_time_us) / 1000);
 }

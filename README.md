@@ -20,6 +20,10 @@ Available Easing Types
 - `Bounce` – Simulates bounce-back at the end of motion.
 - `Wobble-Pop` – Overshoots slightly, then settles with a wobble.
 
+## Waiting Functions
+
+Warning: the speed of a servo is dependent not only it's formal specification, but the requested angle delta and torque on the motor. Thus, the waiting functions provide a general estimate on blocking time, but not exact.
+
 ## Important Notes
 
 - Each servo must use a GPIO mapped to a unique [PWM slice](https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf#%5B%7B%22num%22%3A1077%2C%22gen%22%3A0%7D%2C%7B%22name%22%3A%22XYZ%22%7D%2C115%2C165.63628%2Cnull%5D)
