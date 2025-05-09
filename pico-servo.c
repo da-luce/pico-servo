@@ -11,7 +11,7 @@
 #define START_ANGLE                 0.0f
 
 // MG90S constants
-#define MG90S_FRAME_PERIOD_USEC     20000u  // 10 ms (running at 2 x 50 Hz)
+#define MG90S_FRAME_PERIOD_USEC     10000u  // 10 ms (running at 2 x 50 Hz)
 #define MG90S_PULSE_WIDTH_MIN_USEC  500u    // 0.5 ms
 #define MG90S_PULSE_WIDTH_MAX_USEC  2500u   // 2.5 ms
 #define MG90S_SEC_PER_60            0.1f
@@ -144,6 +144,6 @@ int main() {
     servo_init(&servo);
     sleep_ms(2500);
 
-    // test_sequence();
+    test_sequence();
     test_sequence_wait();
 }

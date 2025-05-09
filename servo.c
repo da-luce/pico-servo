@@ -278,9 +278,10 @@ void servo_set_deg_ease_wait(Servo* servo, float angle_deg, unsigned int duratio
     // Interrupts take time! For most easing functions, the max is around 20us
     // per interrupt (on the RP2350)
     // TODO: interrupts will be longer on the RP2040 since it doesn't have fp hardware
-    // NOTE: this is no joke! Failing to account for the time of interrupts causes the angle to not be set!
+    // NOTE: this is no joke! Failing to account for the time of interrupts can cause issues when
+    // (1) Multiple ease_wait functions are called in sequence with (2) no active code after
     // This is because sleep_ms is implemented with a hardware timer!
-    unsigned int interrupt_time_us = 20u;
+    unsigned int interrupt_time_us = 20u; // FIXME: make this less hacky?
     unsigned int total_interrupt_time_us = (duration_us * interrupt_time_us) / servo->period_usec;
 
     sleep_ms((duration_us + total_interrupt_time_us) / 1000);
