@@ -76,6 +76,12 @@ void servo_set_deg_ease(Servo* servo, float angle_deg, unsigned int duration_us,
  */
 void servo_set_deg_ease_wait(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float));
 
+/* If you are using PWM IRQs for other purposes, register your IRQ handler after
+ * initializing all servos and call this function at the top of your handler
+ * FIXME: this is untested
+ */
+void servo_on_pwm_wrap(void);
+
 /* Easing functions that map input progress from [0.0, 1.0] to an output in [0.0, 1.0]
  */
 float ease_lin(float x);

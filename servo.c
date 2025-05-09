@@ -1,6 +1,8 @@
 #include "servo.h"
+
 #include <stdio.h>
 #include <math.h>
+#include <assert.h>
 
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
@@ -116,6 +118,9 @@ void handle_servo_irq_for_slice(int slice)
         servo->current_angle = servo->motion.end_deg;
 
         // Release the lock and exit
+        // Mutex API is "non-IRQ" but supposodly, it's ok to release the lock in
+        // an IRQ.
+        // https://www.raspberrypi.com/documentation/pico-sdk/high_level.html#group_mutex
         mutex_exit(&servo->mutex);
         return;
     }
@@ -129,14 +134,19 @@ void handle_servo_irq_for_slice(int slice)
     set_deg(servo, angle);
 }
 
-void on_pwm_wrap() {
+void servo_on_pwm_wrap() {
 
     // Get the IRQ status mask
     uint32_t irq_status = pwm_get_irq_status_mask();
 
     // Check each slice and handle if its IRQ is set
     for (int slice = 0; slice < NUM_PWM_SLICES; ++slice) {
-        if (irq_status & (1u << slice)) {
+
+        // Don't do anything with PWM slices we aren't using
+        bool slice_set = irq_status & (1u << slice);
+        bool servo_using = registered_servos[slice] != NULL;
+        if (slice_set && servo_using) {
+
             // Clear the interrupt flag that brought us here
             pwm_clear_irq(slice);
 
@@ -197,6 +207,10 @@ void servo_init(Servo* servo)
     servo->slice_num = slice_num;
     servo->channel_num = channel_num;
 
+    // Track this servo globally
+    assert(registered_servos[servo->slice_num] == NULL);
+    registered_servos[servo->slice_num] = servo;
+
     // Set defaults for unset fields
     if (!servo->sec_per_60)
     {
@@ -221,17 +235,17 @@ void servo_init(Servo* servo)
     // Initialize the servo mutex
     mutex_init(&servo->mutex);
 
-    // Register interrupt handler at NVIC level
-    irq_set_exclusive_handler(PWM_DEFAULT_IRQ_NUM(), on_pwm_wrap);
-    // Disable interrupts for all slices
-    irq_set_enabled(PWM_DEFAULT_IRQ_NUM(), true);
-    for (int i = 0; i < NUM_PWM_SLICES; i++)
-    {
-        pwm_set_irq_enabled(i, false);
+    // Initialize IRQ for PWM globally
+    static bool pwm_irq_initialized = false;
+    if (!pwm_irq_initialized) {
+        irq_set_exclusive_handler(PWM_DEFAULT_IRQ_NUM(), servo_on_pwm_wrap);
+        irq_set_enabled(PWM_DEFAULT_IRQ_NUM(), true);
+        pwm_irq_initialized = true;
     }
 
-    // Track this servo globally
-    registered_servos[servo->slice_num] = servo;
+    // Disable IRQs for this slice, we will enable when we want to use during
+    // a motion
+    pwm_set_irq_enabled(slice_num, false);
 
     // Set the duty cycle to the starting angle and start
     servo_set_deg(servo, servo->start_angle_deg);

@@ -77,6 +77,8 @@ Warning: the speed of a servo is dependent not only it's formal specification, b
 - Servos must be configured to use GPIOs on separate 
 - While the Pico exposes 24 PWM channels, only 12 independent slices are available—this library supports up to 12 servos.
 - It's your responsibility to ensure that servos are not commanded beyond their mechanical speed or range limits
+- If you are using PWM IRQs for other purposes, register your IRQ handler after
+  initializing all servos and call `servo_on_pwm_wrap()` at the top of your handler (this is untested)
 
 ## Miscellanous
 
