@@ -156,6 +156,7 @@ void servo_on_pwm_wrap() {
     }
 }
 
+// FIXME: this function is not truly non-blocking. Perhaps a queue system is needed...
 void servo_set_deg_ease(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float))
 {
     // Wait until we can use the servo
@@ -172,6 +173,8 @@ void servo_set_deg_ease(Servo* servo, float angle_deg, unsigned int duration_us,
     servo->motion.start_deg = servo->current_angle;
     servo->motion.end_deg = angle_deg;
     servo->motion.ease_fn = ease_fn;
+
+    return;
 
     // The mutex will be freed by the interrupt handler once the motion has ended
 }

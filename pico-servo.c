@@ -6,19 +6,20 @@
 
 #include "servo.h"
 
-#define SERVO_GPIO                  22u
+#define SERVOA_GPIO                 22u
+#define SERVOB_GPIO                 9u
 #define START_ANGLE                 0.0f
 #define SEC                         1000000u // One second in us, since we do everything in us
 
 // MG90S constants
-#define MG90S_FRAME_PERIOD_USEC     10000u  // 10 ms (running at 2 x 50 Hz)
+#define MG90S_FRAME_PERIOD_USEC     20000u  // 10 ms (running at 2 x 50 Hz)
 #define MG90S_PULSE_WIDTH_MIN_USEC  500u    // 0.5 ms
 #define MG90S_PULSE_WIDTH_MAX_USEC  2500u   // 2.5 ms
 #define MG90S_SEC_PER_60            0.5f    // Setting this slower as I don't have a legit MG90S
 #define MG90S_MAX_ANGLE             180.0f  // 180 degrees
 
-Servo servo = {
-    .gpio               = SERVO_GPIO,
+Servo servoA = {
+    .gpio               = SERVOA_GPIO,
     .period_usec        = MG90S_FRAME_PERIOD_USEC,
     .duty_min_usec      = MG90S_PULSE_WIDTH_MIN_USEC,
     .duty_max_usec      = MG90S_PULSE_WIDTH_MAX_USEC,
@@ -27,7 +28,18 @@ Servo servo = {
     .max_degrees        = MG90S_MAX_ANGLE,
 };
 
-void oscillate_to_center()
+Servo servoB = {
+    .gpio               = SERVOB_GPIO,
+    .period_usec        = MG90S_FRAME_PERIOD_USEC,
+    .duty_min_usec      = MG90S_PULSE_WIDTH_MIN_USEC,
+    .duty_max_usec      = MG90S_PULSE_WIDTH_MAX_USEC,
+    .start_angle_deg    = START_ANGLE,
+    .sec_per_60         = MG90S_SEC_PER_60,
+    .max_degrees        = MG90S_MAX_ANGLE,
+};
+
+
+void oscillate_to_center(Servo* servo)
 {
     const float center = 90.0f;
     const float max_offset = 90.0f; // max deviation from center (i.e. from 90 to 0/180)
@@ -47,10 +59,10 @@ void oscillate_to_center()
         if (left < 0.0f) left = 0.0f;
         if (right > 180.0f) right = 180.0f;
 
-        servo_set_deg(&servo, left);
+        servo_set_deg(servo, left);
         sleep_us(delay_us);
 
-        servo_set_deg(&servo, right);
+        servo_set_deg(servo, right);
         sleep_us(delay_us);
 
         offset -= decay_step;
@@ -58,12 +70,12 @@ void oscillate_to_center()
     }
 
     // Finish at center
-    servo_set_deg(&servo, center);
+    servo_set_deg(servo, center);
     sleep_ms(250);
 }
 
 
-void oscillate_to_center_ease()
+void oscillate_to_center_ease(Servo* servo)
 {
     const float center = 90.0f;
     const float max_offset = 90.0f; // max deviation from center (i.e. from 90 to 0/180)
@@ -83,20 +95,20 @@ void oscillate_to_center_ease()
         if (left < 0.0f) left = 0.0f;
         if (right > 180.0f) right = 180.0f;
 
-        servo_set_deg_ease(&servo, left, delay_us, ease_sin);
-        servo_set_deg_ease(&servo, right, delay_us, ease_sin);
+        servo_set_deg_ease(servo, left, delay_us, ease_sin);
+        servo_set_deg_ease(servo, right, delay_us, ease_sin);
 
         offset -= decay_step;
         delay_us -= decay_delay;
     }
 
     // Finish at center
-    servo_set_deg(&servo, center);
+    servo_set_deg(servo, center);
     sleep_ms(250);
 }
 
 
-void test_sequence()
+void test_sequence(Servo* servo)
 {
     // Simple stepping sequence
     bool forward = true;
@@ -109,7 +121,7 @@ void test_sequence()
             angle = 0.0f;
             while (angle <= 180.0f)
             {
-                servo_set_deg(&servo, angle);
+                servo_set_deg(servo, angle);
                 angle += step;
                 sleep_ms(sleep_time);
             }
@@ -118,7 +130,7 @@ void test_sequence()
             angle = 180.0f;
             while (angle >= 0.0f)
             {
-                servo_set_deg(&servo, angle);
+                servo_set_deg(servo, angle);
                 angle -= step;
                 sleep_ms(sleep_time);
             }
@@ -128,25 +140,31 @@ void test_sequence()
         forward = !forward;
     }
 
-    servo_set_deg(&servo, 180.0f);
+    servo_set_deg(servo, 180.0f);
     sleep_ms(500);
-    servo_set_deg(&servo, 0.0f);
+    servo_set_deg(servo, 0.0f);
     sleep_ms(500);
 
-    servo_set_deg_ease(&servo, 180.0f, SEC, ease_out_bounce);
-    servo_set_deg_ease(&servo, 0.0f, SEC, ease_out_bounce);
+    servo_set_deg_ease(servo, 180.0f, SEC, ease_out_bounce);
+    servo_set_deg_ease(servo, 0.0f, SEC, ease_out_bounce);
 
-    servo_set_deg_ease(&servo, 180.0f, SEC, ease_in_expo);
-    servo_set_deg_ease(&servo, 0.0f, SEC, ease_inverse_smoothstep);
-    servo_set_deg_ease(&servo, 180.0f, SEC, ease_inverse_smoothstep);
-    servo_set_deg_ease(&servo, 0.0f, SEC, ease_out_expo); 
+    servo_set_deg_ease(servo, 180.0f, SEC, ease_in_expo);
+    servo_set_deg_ease(servo, 0.0f, SEC, ease_inverse_smoothstep);
+    servo_set_deg_ease(servo, 180.0f, SEC, ease_inverse_smoothstep);
+    servo_set_deg_ease(servo, 0.0f, SEC, ease_out_expo); 
 
     // Keep the core active for the last movement
     // TODO: is this a bug on the Pico, should it not be in interrupt wait mode?
     sleep_ms(1000);
 }
 
-void test_sequence_wait()
+void test_non_blocking(Servo* servo)
+{
+    servo_set_deg_ease(servo, 0.0f, SEC, ease_lin);
+    servo_set_deg_ease(servo, 180.0f, SEC, ease_lin);
+}
+
+void test_sequence_wait(Servo* servo)
 {
     // Simple stepping sequence
     bool forward = true;
@@ -158,7 +176,7 @@ void test_sequence_wait()
             angle = 0.0f;
             while (angle <= 180.0f)
             {
-                servo_set_deg_wait(&servo, angle);
+                servo_set_deg_wait(servo, angle);
                 angle += step;
             }
         } else
@@ -166,7 +184,7 @@ void test_sequence_wait()
             angle = 180.0f;
             while (angle >= 0.0f)
             {
-                servo_set_deg_wait(&servo, angle);
+                servo_set_deg_wait(servo, angle);
                 angle -= step;
             }
 
@@ -175,16 +193,16 @@ void test_sequence_wait()
         forward = !forward;
     }
 
-    servo_set_deg_wait(&servo, 180.0f);
-    servo_set_deg_wait(&servo, 0.0f);
+    servo_set_deg_wait(servo, 180.0f);
+    servo_set_deg_wait(servo, 0.0f);
 
-    servo_set_deg_ease_wait(&servo, 180.0f, SEC, ease_out_bounce);
-    servo_set_deg_ease_wait(&servo, 0.0f, SEC, ease_out_bounce);
+    servo_set_deg_ease_wait(servo, 180.0f, SEC, ease_out_bounce);
+    servo_set_deg_ease_wait(servo, 0.0f, SEC, ease_out_bounce);
 
-    servo_set_deg_ease_wait(&servo, 180.0f, SEC, ease_in_expo);
-    servo_set_deg_ease_wait(&servo, 0.0f, SEC, ease_inverse_smoothstep);
-    servo_set_deg_ease_wait(&servo, 180.0f, SEC, ease_inverse_smoothstep);
-    servo_set_deg_ease_wait(&servo, 0.0f, SEC, ease_out_expo); 
+    servo_set_deg_ease_wait(servo, 180.0f, SEC, ease_in_expo);
+    servo_set_deg_ease_wait(servo, 0.0f, SEC, ease_inverse_smoothstep);
+    servo_set_deg_ease_wait(servo, 180.0f, SEC, ease_inverse_smoothstep);
+    servo_set_deg_ease_wait(servo, 0.0f, SEC, ease_out_expo); 
 }
 
 bool is_prime(int n) {
@@ -238,24 +256,29 @@ int main() {
 
     stdio_init_all();
     pico_led_init();
-    servo_init(&servo);
-    sleep_ms(200);
+    servo_init(&servoA);
+    servo_init(&servoB);
+    sleep_ms(500);
 
-    test_sequence();
-    oscillate_to_center();
-    oscillate_to_center_ease();
-    test_sequence_wait();
+    servo_set_deg_ease(&servoA, 180.0f, SEC, ease_lin);
+    servo_set_deg_ease(&servoB, 180.0f, SEC, ease_lin);
+
+    test_non_blocking(&servoA);
+    test_non_blocking(&servoB);
+
+    // test_sequence(&servoA);
+    // oscillate_to_center(&servoA);
+    // oscillate_to_center_ease(&servoA);
+    // test_sequence_wait(&servoA);
 
     // Cool non-blocking demo
-    // The prime will be found before the motor finishes moving
-    servo_set_deg_ease(&servo, 180.0f, 10 * SEC, ease_lin);
-    int prime = find_nth_prime(25000);
-    printf("Found prime: %d\n", prime);
-    pico_set_led(true);
+    servo_set_deg_ease(&servoA, 180.0f, 10 * SEC, ease_lin);
 
-    // Keep running the system to handle interrupts
     while (1) {
-        tight_loop_contents();
+        pico_set_led(true);
+        sleep_ms(200);
+        pico_set_led(false);
+        sleep_ms(200);
     }
 
 }
