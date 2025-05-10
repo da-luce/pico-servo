@@ -65,13 +65,16 @@ void servo_set_deg_wait(Servo* servo, float angle_deg);
  * it returns immediately after scheduling. However, it prevents other servo
  * movement operations from running concurrently on the same servo until the
  * current motion is complete. Other unrelated code continues to run during the motion.
+ * Defaults to linear motion if no easing specified.
  */
-void servo_set_deg_ease(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float));
+void servo_time_to_deg(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float));
 
 /* Schedules the servo movement in degrees over the specified duration using the provided
  * easing function. This function is blocking from the caller's perspective.
  */
-void servo_set_deg_ease_wait(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float));
+void servo_time_to_deg_wait(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float));
+
+void servo_speed_to_deg(Servo* servo, float angle_deg, float deg_per_sec);
 
 /* If you are using PWM IRQs for other purposes, register your IRQ handler after
  * initializing all servos and call this function at the top of your handler

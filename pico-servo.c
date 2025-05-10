@@ -95,8 +95,8 @@ void oscillate_to_center_ease(Servo* servo)
         if (left < 0.0f) left = 0.0f;
         if (right > 180.0f) right = 180.0f;
 
-        servo_set_deg_ease(servo, left, delay_us, ease_sin);
-        servo_set_deg_ease(servo, right, delay_us, ease_sin);
+        servo_time_to_deg(servo, left, delay_us, ease_sin);
+        servo_time_to_deg(servo, right, delay_us, ease_sin);
 
         offset -= decay_step;
         delay_us -= decay_delay;
@@ -145,13 +145,13 @@ void test_sequence(Servo* servo)
     servo_set_deg(servo, 0.0f);
     sleep_ms(500);
 
-    servo_set_deg_ease(servo, 180.0f, SEC, ease_out_bounce);
-    servo_set_deg_ease(servo, 0.0f, SEC, ease_out_bounce);
+    servo_time_to_deg(servo, 180.0f, SEC, ease_out_bounce);
+    servo_time_to_deg(servo, 0.0f, SEC, ease_out_bounce);
 
-    servo_set_deg_ease(servo, 180.0f, SEC, ease_in_expo);
-    servo_set_deg_ease(servo, 0.0f, SEC, ease_inverse_smoothstep);
-    servo_set_deg_ease(servo, 180.0f, SEC, ease_inverse_smoothstep);
-    servo_set_deg_ease(servo, 0.0f, SEC, ease_out_expo); 
+    servo_time_to_deg(servo, 180.0f, SEC, ease_in_expo);
+    servo_time_to_deg(servo, 0.0f, SEC, ease_inverse_smoothstep);
+    servo_time_to_deg(servo, 180.0f, SEC, ease_inverse_smoothstep);
+    servo_time_to_deg(servo, 0.0f, SEC, ease_out_expo); 
 
     // Keep the core active for the last movement
     // TODO: is this a bug on the Pico, should it not be in interrupt wait mode?
@@ -160,8 +160,8 @@ void test_sequence(Servo* servo)
 
 void test_non_blocking(Servo* servo)
 {
-    servo_set_deg_ease(servo, 0.0f, SEC, ease_lin);
-    servo_set_deg_ease(servo, 180.0f, SEC, ease_lin);
+    servo_time_to_deg(servo, 0.0f, SEC, ease_lin);
+    servo_time_to_deg(servo, 180.0f, SEC, ease_lin);
 }
 
 void test_sequence_wait(Servo* servo)
@@ -196,13 +196,13 @@ void test_sequence_wait(Servo* servo)
     servo_set_deg_wait(servo, 180.0f);
     servo_set_deg_wait(servo, 0.0f);
 
-    servo_set_deg_ease_wait(servo, 180.0f, SEC, ease_out_bounce);
-    servo_set_deg_ease_wait(servo, 0.0f, SEC, ease_out_bounce);
+    servo_time_to_deg_wait(servo, 180.0f, SEC, ease_out_bounce);
+    servo_time_to_deg_wait(servo, 0.0f, SEC, ease_out_bounce);
 
-    servo_set_deg_ease_wait(servo, 180.0f, SEC, ease_in_expo);
-    servo_set_deg_ease_wait(servo, 0.0f, SEC, ease_inverse_smoothstep);
-    servo_set_deg_ease_wait(servo, 180.0f, SEC, ease_inverse_smoothstep);
-    servo_set_deg_ease_wait(servo, 0.0f, SEC, ease_out_expo); 
+    servo_time_to_deg_wait(servo, 180.0f, SEC, ease_in_expo);
+    servo_time_to_deg_wait(servo, 0.0f, SEC, ease_inverse_smoothstep);
+    servo_time_to_deg_wait(servo, 180.0f, SEC, ease_inverse_smoothstep);
+    servo_time_to_deg_wait(servo, 0.0f, SEC, ease_out_expo); 
 }
 
 bool is_prime(int n) {
@@ -260,11 +260,13 @@ int main() {
     servo_init(&servoB);
     sleep_ms(500);
 
-    servo_set_deg_ease(&servoA, 180.0f, SEC, ease_lin);
-    servo_set_deg_ease(&servoB, 180.0f, SEC, ease_lin);
+    servo_speed_to_deg(&servoA, 180.0f, 30.0f);
 
-    test_non_blocking(&servoA);
-    test_non_blocking(&servoB);
+    // servo_time_to_deg(&servoA, 180.0f, SEC, ease_lin);
+    // servo_time_to_deg(&servoB, 180.0f, SEC, ease_lin);
+
+    // test_non_blocking(&servoA);
+    // test_non_blocking(&servoB);
 
     // test_sequence(&servoA);
     // oscillate_to_center(&servoA);
@@ -272,7 +274,7 @@ int main() {
     // test_sequence_wait(&servoA);
 
     // Cool non-blocking demo
-    servo_set_deg_ease(&servoA, 180.0f, 10 * SEC, ease_lin);
+    servo_time_to_deg(&servoA, 180.0f, 10 * SEC, ease_lin);
 
     while (1) {
         pico_set_led(true);

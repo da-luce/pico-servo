@@ -22,8 +22,8 @@
 #define TO_DEG(radians) ((radians) * 180.0f / M_PI )
 #endif
 
-#define CLKDIV 100.0f   // A clock div that allows for overclocking with PWM
-#define MICRO 1e6       // Number of microsecs in a sec
+#define CLKDIV          100.0f      // A clock div that allows for overclocking with PWM
+#define MICRO_PER_SEC   1000000u    // Number of microsecs in a sec
 
 static uint32_t sys_hz;
 static Servo* registered_servos[NUM_PWM_SLICES];
@@ -48,7 +48,7 @@ void set_rad(Servo* servo, float angle_rad)
     // Set the duty cycle to achieve the angle
     // Map angle to duty cycle
     unsigned int duty_usec = angle_rad / servo->max_rad * (servo->duty_max_usec - servo->duty_min_usec) + servo->duty_min_usec;
-    unsigned int duty_val = (sys_hz / CLKDIV) * duty_usec / MICRO;
+    unsigned int duty_val = (sys_hz / CLKDIV) * duty_usec / MICRO_PER_SEC;
     pwm_set_chan_level(servo->slice_num, servo->channel_num, duty_val); 
 
     servo->current_angle = TO_DEG(angle_rad);
@@ -157,10 +157,15 @@ void servo_on_pwm_wrap() {
 }
 
 // FIXME: this function is not truly non-blocking. Perhaps a queue system is needed...
-void servo_set_deg_ease(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float))
+void servo_time_to_deg(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float))
 {
     // Wait until we can use the servo
     mutex_enter_blocking(&servo->mutex);
+
+    // Default to linear motion
+    if (ease_fn == NULL) {
+        ease_fn = ease_lin;
+    }
 
     // Mask our slice's IRQ output into the PWM block's single interrupt line,
     // and register our interrupt handler
@@ -179,9 +184,9 @@ void servo_set_deg_ease(Servo* servo, float angle_deg, unsigned int duration_us,
     // The mutex will be freed by the interrupt handler once the motion has ended
 }
 
-void servo_set_deg_ease_wait(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float))
+void servo_time_to_deg_wait(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float))
 {
-    servo_set_deg_ease(servo, angle_deg, duration_us, ease_fn);
+    servo_time_to_deg(servo, angle_deg, duration_us, ease_fn);
 
     // Sleep for duration
     sleep_us(duration_us);
@@ -192,6 +197,15 @@ void servo_set_deg_ease_wait(Servo* servo, float angle_deg, unsigned int duratio
     // we want to avoid timing issues between mutiple sequential ease_wait calls
     mutex_enter_blocking(&servo->mutex);
     mutex_exit(&servo->mutex);
+}
+
+void servo_speed_to_deg(Servo* servo, float angle_deg, float deg_per_sec)
+{
+    // TODO: no mutex needed here?
+    float angle_delta = fabsf(angle_deg - servo->current_angle);
+    unsigned int time_us = (unsigned int) (angle_delta / deg_per_sec) * MICRO_PER_SEC;
+
+    servo_time_to_deg(servo, angle_deg, time_us, ease_lin);
 }
 
 
@@ -231,7 +245,7 @@ void servo_init(Servo* servo)
     sys_hz = clock_get_hz(clk_sys);
     // Given CLKDIV, figure out how many cycles are required to achieve servo.period_usec
     pwm_set_clkdiv(slice_num, CLKDIV) ;
-    unsigned int wrap_val = (sys_hz / CLKDIV) * servo->period_usec / MICRO;
+    unsigned int wrap_val = (sys_hz / CLKDIV) * servo->period_usec / MICRO_PER_SEC;
     // Max unit16 is 65535, so we need a high clockdiv to work with overclocking
     pwm_set_wrap(slice_num, wrap_val);
 
