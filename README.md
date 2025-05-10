@@ -55,28 +55,16 @@ int main()
 
 ## API
 
-The API is broken into two classes of commands: direct and timed.
+All functions wait until the servo is available before initiating a new movement.
+However, once the movement begins, the function returns immediately.
+If you want the function to block until the movement is fully completed,
+use the corresponding `_wait` variant.
 
-### Direct Commands
-
-Direct commands provide immediate control over the servo.
-These commands are designed for quick, one-shot movements without the need for interpolation or gradual transition.
-They can be categorized into non-blocking and blocking commands.
-
-| **Command**                                          | **Description**                                                                                                                                                                                                               |
-| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `servo_set_deg`<br>`servo_set_rad`                   | **Non-blocking** command to instantly move the servo to the specified angle. You must wait between commands to avoid over-torquing the servo.                                                                                 |
-| `servo_set_deg_blocking`<br>`servo_set_rad_blocking` | **Blocking** command to move the servo to the specified angle. The function blocks until the servo reaches the target position. The blocking time is estimated based on the servo's specified speed or feedback if available. |
-
-### Timed Commands
-
-Timed commands provide smooth transitions of servo movement, interpolating between the current position and the target position over a specified time duration.
-These can be either non-blocking or blocking. If `interruptible == true`, the movement will be interrupted by new commands.
-
-| **Command**                                                    | **Description**                                                                                                                                             |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `servo_timed_to_deg`<br>`servo_timed_to_rad`                   | **Non-blocking** command to move the servo to a target angle, over a specified duration. The movement is queued and executed in the background.             |
-| `servo_timed_to_deg_blocking`<br>`servo_timed_to_rad_blocking` | **Blocking** command to move the servo to a target angle and block until the movement is completed. The duration of movement is based on the provided time. |
+| **Control Type** | **Functions**                                | **Description**                                                                              |
+| ---------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Position         | `servo_set_deg`<br>`servo_set_rad`           | Move the servo directly to the specified angle.                                              |
+| Time             | `servo_time_to_deg`<br>`servo_time_to_rad`   | Move the servo to the specified angle over a set duration, with a specified easing function. |
+| Speed            | `servo_speed_to_deg`<br>`servo_speed_to_rad` | Move the servo to the specified angle at a defined speed.                                    |
 
 The following easing functions are provided for the timed commands
 
@@ -88,11 +76,59 @@ The following easing functions are provided for the timed commands
 | `Ease In-Out` |               | Combines both for smooth transitions.                 |
 | `Sine`        |               | Smooth, sinusoidal motion.                            |
 | `Bounce`      |               | Simulates bounce-back at the end of motion.           |
-|               |               |                                                       |
 
 ## Waiting Functions
 
-Warning: the speed of a servo is dependent not only it's formal specification, but the requested angle delta and torque on the motor. Thus, the waiting functions provide a general estimate on blocking time, but not exact.
+Warning: the speed of a servo is dependent not only it's formal specification, but the requested angle delta and torque on the motor. Thus, the waiting functions provide a general estimate on blocking time, but not exact, unless feedback is provided.
+
+## Moving Multiple Servos
+
+As mentioned above, all functions wait until the specified servo is available before starting a new movement. This means you can issue commands to different servos concurrently, and they will begin moving in parallel:
+
+```c
+servo_time_to_deg(&servoA, 180.0f, SEC, ease_lin);
+servo_time_to_deg(&servoB, 180.0f, SEC, ease_lin);
+
+servo_time_to_deg(&servoA, 0.0f, SEC, ease_lin);
+servo_time_to_deg(&servoB, 0.0f, SEC, ease_lin);
+```
+
+However, if you issue multiple commands to the same servo, each command will block until the previous one has started, resulting in sequential execution:
+
+```c
+servo_time_to_deg(&servoA, 180.0f, SEC, ease_lin);
+servo_time_to_deg(&servoA, 0.0f, SEC, ease_lin);
+
+servo_time_to_deg(&servoB, 180.0f, SEC, ease_lin);
+servo_time_to_deg(&servoB, 0.0f, SEC, ease_lin);
+```
+
+Given this, to coordinate movements more cleanly, it's often a good idea to control each servo from a dedicated thread or protothread, like so:
+
+```c
+PT_THREAD(servoA_thread(struct pt *pt)) {
+    PT_BEGIN(pt);
+    while (1) {
+        servo_time_to_deg(&servoA, 180.0f, SEC, ease_lin);
+        PT_YIELD(pt);
+        servo_time_to_deg(&servoA, 0.0f, SEC, ease_lin);
+        PT_YIELD(pt);
+    }
+    PT_END(pt);
+}
+
+PT_THREAD(servoB_thread(struct pt *pt)) {
+    PT_BEGIN(pt);
+    while (1) {
+        servo_time_to_deg(&servoB, 180.0f, SEC, ease_lin);
+        PT_YIELD(pt);
+        servo_time_to_deg(&servoB, 0.0f, SEC, ease_lin);
+        PT_YIELD(pt);
+    }
+    PT_END(pt);
+}
+
+```
 
 ## Important Notes
 
