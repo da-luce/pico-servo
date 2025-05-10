@@ -4,11 +4,15 @@ A small, efficient, and robust library designed for controlling servos on the RP
 
 This project was tested on [MG90S](https://towerpro.com.tw/product/mg90s-3/) servos and a [Pico 2 W](https://datasheets.raspberrypi.com/picow/pico-2-w-datasheet.pdf). It should work on all other Pico variants, and most servos.
 
+To use the library, simply add `servo.c` and `servo.h` to your project.
+
 ![MG90S servo performing a test sequence](media/servo.gif)
 
 ## Examples
 
-Here's a minimal example showing how to configure and control a servo using the Servo struct:
+### Basic
+
+Here's a [minimal example](./examples/basic.c) showing how to configure and control a servo using the Servo struct:
 
 ```c
 #include "servo.h"
@@ -27,7 +31,9 @@ int main()
 }
 ```
 
-A key feature of this library is its support for smooth, eased servo motions using interpolation functions:
+### Easing
+
+A key feature of this library is its support for smooth, eased servo motions using interpolation functions (see [easing](./examples/easing.c) and [non_blocking](./examples/non_blocking.c) demos):
 
 ```c
 // Same setup as above...
@@ -44,6 +50,30 @@ int main()
     servo_set_deg_ease_wait(&servo, 0.0f, 2 * SEC, ease_out_expo);
 }
 ```
+
+## Multiple Servos
+
+As mentioned above, all functions wait until the specified servo is available before starting a new movement. This means you can issue commands to different servos concurrently, and they will begin moving in parallel:
+
+```c
+servo_time_to_deg(&servoA, 180.0f, SEC, ease_lin);
+servo_time_to_deg(&servoB, 180.0f, SEC, ease_lin);
+
+servo_time_to_deg(&servoA, 0.0f, SEC, ease_lin);
+servo_time_to_deg(&servoB, 0.0f, SEC, ease_lin);
+```
+
+However, if you issue multiple commands to the same servo, each command will block until the previous one has started, resulting in sequential execution:
+
+```c
+servo_time_to_deg(&servoA, 180.0f, SEC, ease_lin);
+servo_time_to_deg(&servoA, 0.0f, SEC, ease_lin);
+
+servo_time_to_deg(&servoB, 180.0f, SEC, ease_lin);
+servo_time_to_deg(&servoB, 0.0f, SEC, ease_lin);
+```
+
+Given this, to coordinate movements more cleanly, it's often a good idea to control each servo from a dedicated thread or protothread, like in the [multithreading example](./examples/threading/multi_threading.c).
 
 ## TODO
 
@@ -81,55 +111,6 @@ The following easing functions are provided for the timed commands
 
 Warning: the speed of a servo is dependent not only it's formal specification, but the requested angle delta and torque on the motor. Thus, the waiting functions provide a general estimate on blocking time, but not exact, unless feedback is provided.
 
-## Moving Multiple Servos
-
-As mentioned above, all functions wait until the specified servo is available before starting a new movement. This means you can issue commands to different servos concurrently, and they will begin moving in parallel:
-
-```c
-servo_time_to_deg(&servoA, 180.0f, SEC, ease_lin);
-servo_time_to_deg(&servoB, 180.0f, SEC, ease_lin);
-
-servo_time_to_deg(&servoA, 0.0f, SEC, ease_lin);
-servo_time_to_deg(&servoB, 0.0f, SEC, ease_lin);
-```
-
-However, if you issue multiple commands to the same servo, each command will block until the previous one has started, resulting in sequential execution:
-
-```c
-servo_time_to_deg(&servoA, 180.0f, SEC, ease_lin);
-servo_time_to_deg(&servoA, 0.0f, SEC, ease_lin);
-
-servo_time_to_deg(&servoB, 180.0f, SEC, ease_lin);
-servo_time_to_deg(&servoB, 0.0f, SEC, ease_lin);
-```
-
-Given this, to coordinate movements more cleanly, it's often a good idea to control each servo from a dedicated thread or protothread, like so:
-
-```c
-PT_THREAD(servoA_thread(struct pt *pt)) {
-    PT_BEGIN(pt);
-    while (1) {
-        servo_time_to_deg(&servoA, 180.0f, SEC, ease_lin);
-        PT_YIELD(pt);
-        servo_time_to_deg(&servoA, 0.0f, SEC, ease_lin);
-        PT_YIELD(pt);
-    }
-    PT_END(pt);
-}
-
-PT_THREAD(servoB_thread(struct pt *pt)) {
-    PT_BEGIN(pt);
-    while (1) {
-        servo_time_to_deg(&servoB, 180.0f, SEC, ease_lin);
-        PT_YIELD(pt);
-        servo_time_to_deg(&servoB, 0.0f, SEC, ease_lin);
-        PT_YIELD(pt);
-    }
-    PT_END(pt);
-}
-
-```
-
 ## Important Notes
 
 - Each servo must use a GPIO mapped to a unique [PWM slice](https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf#%5B%7B%22num%22%3A1077%2C%22gen%22%3A0%7D%2C%7B%22name%22%3A%22XYZ%22%7D%2C115%2C165.63628%2Cnull%5D)
@@ -139,4 +120,3 @@ PT_THREAD(servoB_thread(struct pt *pt)) {
 - If you are using PWM IRQs for other purposes, register your IRQ handler after
   initializing all servos and call `servo_on_pwm_wrap()` at the top of your handler (this is untested)
 
-## Miscellanous

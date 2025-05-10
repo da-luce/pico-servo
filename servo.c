@@ -239,6 +239,8 @@ void servo_init(Servo* servo)
         servo->max_degrees = 180.0f;
     }
     servo->max_rad = TO_RAD(servo->max_degrees);
+    assert(servo->max_degrees > 0.0f);
+    assert(servo->max_degrees <= 360.0f);
 
     // Determine the wrap value of the PWM
 

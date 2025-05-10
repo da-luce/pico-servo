@@ -6,6 +6,9 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Change example!
+set(EXAMPLE_NAME threading/multithreading)
+
 # Initialise pico_sdk from installed location
 # (note this can come from environment, CMake cache etc)
 
@@ -34,8 +37,7 @@ project(pico-servo C CXX ASM)
 pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
-
-add_executable(pico-servo pico-servo.c servo.c)
+add_executable(pico-servo examples/${EXAMPLE_NAME}.c servo.c)
 
 pico_set_program_name(pico-servo "pico-servo")
 pico_set_program_version(pico-servo "0.1")
