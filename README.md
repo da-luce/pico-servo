@@ -55,7 +55,7 @@ int main()
 
 ## API
 
-The API is broken into two classes of commands: direct and smooth.
+The API is broken into two classes of commands: direct and timed.
 
 ### Direct Commands
 
@@ -63,36 +63,32 @@ Direct commands provide immediate control over the servo.
 These commands are designed for quick, one-shot movements without the need for interpolation or gradual transition.
 They can be categorized into non-blocking and blocking commands.
 
-| Direct Commands           | Description                                                                                                                                                                                                                              |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `servo_move_deg`          | **Non-blocking** command to instantly move the servo to the specified angle in degrees. You must wait between commands to avoid over-torquing the servo.                                                                                 |
-| `servo_move_rad`          |                                                                                                                                                                                                                                          |
-| `servo_move_deg_blocking` | **Blocking** command to move the servo to the specified angle in degrees. The function blocks until the servo reaches the target position. The blocking time is estimated based on the servo's specified speed or feedback if available. |
-| `servo_move_rad_blocking` |                                                                                                                                                                                                                                          |
+| **Command**                                          | **Description**                                                                                                                                                                                                               |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `servo_set_deg`<br>`servo_set_rad`                   | **Non-blocking** command to instantly move the servo to the specified angle. You must wait between commands to avoid over-torquing the servo.                                                                                 |
+| `servo_set_deg_blocking`<br>`servo_set_rad_blocking` | **Blocking** command to move the servo to the specified angle. The function blocks until the servo reaches the target position. The blocking time is estimated based on the servo's specified speed or feedback if available. |
 
 ### Timed Commands
 
-Smooth commands provide smooth transitions of servo movement, interpolating between the current position and the target position over a specified time duration.
+Timed commands provide smooth transitions of servo movement, interpolating between the current position and the target position over a specified time duration.
 These can be either non-blocking or blocking. If `interruptible == true`, the movement will be interrupted by new commands.
 
-| Direct Commands               | Description                                                                                                                                                            |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `servo_timed_to_deg`          | **Non-blocking** command to move the servo to a target angle in degrees, over a specified duration. The movement is queued and executed in the background.             |
-| `servo_timed_to_rad`          |                                                                                                                                                                        |
-| `servo_timed_to_deg_blocking` | **Blocking** command to move the servo to a target angle in degrees and block until the movement is completed. The duration of movement is based on the provided time. |
-| `servo_timed_to_rad_blocking` |                                                                                                                                                                        |
-|                               |                                                                                                                                                                        |
+| **Command**                                                    | **Description**                                                                                                                                             |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `servo_timed_to_deg`<br>`servo_timed_to_rad`                   | **Non-blocking** command to move the servo to a target angle, over a specified duration. The movement is queued and executed in the background.             |
+| `servo_timed_to_deg_blocking`<br>`servo_timed_to_rad_blocking` | **Blocking** command to move the servo to a target angle and block until the movement is completed. The duration of movement is based on the provided time. |
 
 The following easing functions are provided for the timed commands
 
-| **Type**       | **Description**                                                        |
-|----------------|------------------------------------------------------------------------|
-| `Linear`       | Constant-speed transition.                                              |
-| `Ease In`      | Starts slow, speeds up (e.g. quadratic, exponential).                   |
-| `Ease Out`     | Starts fast, slows to target.                                           |
-| `Ease In-Out`  | Combines both for smooth transitions.                                   |
-| `Sine`         | Smooth, sinusoidal motion.                                              |
-| `Bounce`       | Simulates bounce-back at the end of motion.                             |
+| **Type**      | **Function Name** | **Description**                                       |
+| ------------- | ------------- | ----------------------------------------------------- |
+| `Linear`      | `ease_lin`    | Constant-speed transition.                            |
+| `Ease In`     |               | Starts slow, speeds up (e.g. quadratic, exponential). |
+| `Ease Out`    |               | Starts fast, slows to target.                         |
+| `Ease In-Out` |               | Combines both for smooth transitions.                 |
+| `Sine`        |               | Smooth, sinusoidal motion.                            |
+| `Bounce`      |               | Simulates bounce-back at the end of motion.           |
+|               |               |                                                       |
 
 ## Waiting Functions
 
