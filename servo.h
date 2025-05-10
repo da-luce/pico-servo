@@ -20,14 +20,14 @@ typedef struct {
     unsigned int period_usec;       // Period of control signal in usec
     unsigned int duty_min_usec;     // Duty cycle of minumum angle in usec
     unsigned int duty_max_usec;     // Duty cycle of maximum angle in usec
-    float start_angle_deg;          // Angle to start at
+    float start_deg;                // Angle to start at
     float sec_per_60;               // Speed to move 60 degrees (Defaults to 0.5)
     float max_degrees;              // Maximum allowable rotation angle of the servo in degrees  (Defaults to 180)
     // These are filled in automatically
     float max_rad;
     unsigned int slice_num;
     unsigned int channel_num;
-    volatile float current_angle;   // Track current angle
+    volatile float current_deg;     // Track current angle
     volatile Motion motion;
     mutex_t mutex;                  // Ensure we don't schedule multiple movements at once
 } Servo;

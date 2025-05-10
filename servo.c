@@ -51,7 +51,7 @@ void set_rad(Servo* servo, float target_rad)
     unsigned int duty_val = (sys_hz / CLKDIV) * duty_usec / MICRO_PER_SEC;
     pwm_set_chan_level(servo->slice_num, servo->channel_num, duty_val); 
 
-    servo->current_angle = TO_DEG(target_rad);
+    servo->current_deg = TO_DEG(target_rad);
 }
 
 /* Private. Uprotected: sets the servo angle in degrees without checking the
@@ -86,7 +86,7 @@ int time_to_move_ms(float distance_deg, float sec_per_60_deg)
 void servo_set_rad_wait(Servo* servo, float target_rad)
 {
     float target_deg = TO_DEG(target_rad);
-    int wait_ms = time_to_move_ms(fabsf(target_deg - servo->current_angle), servo->sec_per_60);
+    int wait_ms = time_to_move_ms(fabsf(target_deg - servo->current_deg), servo->sec_per_60);
     servo_set_rad(servo, target_rad);
     sleep_ms(wait_ms);
 }
@@ -115,7 +115,7 @@ void handle_servo_irq_for_slice(int slice)
         pwm_set_irq_enabled(servo->slice_num, false);
 
         // Update the current angle
-        servo->current_angle = servo->motion.end_deg;
+        servo->current_deg = servo->motion.end_deg;
 
         // Release the lock and exit
         // Mutex API is "non-IRQ" but supposodly, it's ok to release the lock in
@@ -174,7 +174,7 @@ void servo_time_to_rad(Servo* servo, float target_rad, unsigned int duration_us,
     // Set the motion
     servo->motion.current_time_us = 0u;
     servo->motion.duration_us = duration_us;
-    servo->motion.start_deg = servo->current_angle;
+    servo->motion.start_deg = servo->current_deg;
     servo->motion.end_deg = TO_DEG(target_rad);
     servo->motion.ease_fn = ease_fn;
 
@@ -207,13 +207,18 @@ void servo_time_to_deg_wait(Servo* servo, float target_deg, unsigned int duratio
     servo_time_to_rad_wait(servo, TO_RAD(target_deg), duration_us, ease_fn);
 }
 
-void servo_speed_to_deg(Servo* servo, float target_deg, float deg_per_sec)
+void servo_speed_to_rad(Servo* servo, float target_rad, float deg_per_sec)
 {
     // TODO: no mutex needed here?
-    float angle_delta = fabsf(target_deg - servo->current_angle);
-    unsigned int time_us = (unsigned int) (angle_delta / deg_per_sec) * MICRO_PER_SEC;
+    float delta_deg = fabsf(TO_DEG(target_rad) - servo->current_deg);
+    unsigned int time_us = (unsigned int) (delta_deg / deg_per_sec) * MICRO_PER_SEC;
 
-    servo_time_to_deg(servo, target_deg, time_us, ease_lin);
+    servo_time_to_rad(servo, target_rad, time_us, ease_lin);
+}
+
+void servo_speed_to_deg(Servo* servo, float target_deg, float deg_per_sec)
+{
+    servo_speed_to_rad(servo, TO_RAD(target_deg), deg_per_sec);
 }
 
 
@@ -275,7 +280,7 @@ void servo_init(Servo* servo)
     pwm_set_irq_enabled(slice_num, false);
 
     // Set the duty cycle to the starting angle and start
-    servo_set_deg(servo, servo->start_angle_deg);
+    servo_set_deg(servo, servo->start_deg);
     pwm_set_enabled(servo->slice_num, true);
 }
 

@@ -18,7 +18,7 @@ Servo servoA = {
     .period_usec        = MG90S_FRAME_PERIOD_USEC,
     .duty_min_usec      = MG90S_PULSE_WIDTH_MIN_USEC,
     .duty_max_usec      = MG90S_PULSE_WIDTH_MAX_USEC,
-    .start_angle_deg    = 0.0f,
+    .start_deg          = 0.0f,
     .sec_per_60         = MG90S_SEC_PER_60,
     .max_degrees        = MG90S_MAX_ANGLE,
 };
@@ -28,7 +28,7 @@ Servo servoB = {
     .period_usec        = MG90S_FRAME_PERIOD_USEC,
     .duty_min_usec      = MG90S_PULSE_WIDTH_MIN_USEC,
     .duty_max_usec      = MG90S_PULSE_WIDTH_MAX_USEC,
-    .start_angle_deg    = 180.0f,
+    .start_deg          = 180.0f,
     .sec_per_60         = MG90S_SEC_PER_60,
     .max_degrees        = MG90S_MAX_ANGLE,
 };
