@@ -29,7 +29,7 @@ typedef struct {
     unsigned int channel_num;
     volatile float current_angle;   // Track current angle
     volatile Motion motion;
-    mutex_t mutex;  // Lock the servo
+    mutex_t mutex;                  // Ensure we don't schedule multiple movements at once
 } Servo;
 
 /* Initialize hardware and structures required to drive a servo.
@@ -38,47 +38,41 @@ typedef struct {
  */
 void servo_init(Servo* servo);
 
-/* Set the servo position in radians.
+/* Set the servo position in radians/degrees.
  */
-void servo_set_rad(Servo* servo, float angle_rad);
+void servo_set_rad(Servo* servo, float target_rad);
+void servo_set_deg(Servo* servo, float target_deg);
 
-/* Set the servo position in degrees.
- */
-void servo_set_deg(Servo* servo, float angle_deg);
-
-/* Sets the servo position in radians and blocks until the motion is complete.
+/* Sets the servo position in radians/degrees and blocks until the motion is complete.
  * The wait duration is _estimated_ based on the servo's speed parameter. For 
  * longer movements, this is an over estimate, and slight under estimate for short
  * movements.
  */
-void servo_set_rad_wait(Servo* servo, float angle_rad);
+void servo_set_rad_wait(Servo* servo, float target_rad);
+void servo_set_deg_wait(Servo* servo, float target_deg);
 
-/* Sets the servo position in degrees and blocks until the motion is complete.
- * The wait duration is _estimated_ based on the servo's speed parameter. For 
- * longer movements, this is an over estimate, and slight under estimate for short
- * movements.
- */
-void servo_set_deg_wait(Servo* servo, float angle_deg);
-
-/* Schedules the servo movement in degrees over the specified duration using the provided
+/* Schedules the servo movement in radians/degrees over the specified duration using the provided
  * easing function. This function is non-blocking from the caller's perspective:
  * it returns immediately after scheduling. However, it prevents other servo
  * movement operations from running concurrently on the same servo until the
  * current motion is complete. Other unrelated code continues to run during the motion.
  * Defaults to linear motion if no easing specified.
  */
-void servo_time_to_deg(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float));
+void servo_time_to_rad(Servo* servo, float target_rad, unsigned int duration_us, float (*ease_fn)(float));
+void servo_time_to_deg(Servo* servo, float target_deg, unsigned int duration_us, float (*ease_fn)(float));
 
-/* Schedules the servo movement in degrees over the specified duration using the provided
+/* Schedules the servo movement in radians/degrees over the specified duration using the provided
  * easing function. This function is blocking from the caller's perspective.
  */
-void servo_time_to_deg_wait(Servo* servo, float angle_deg, unsigned int duration_us, float (*ease_fn)(float));
+void servo_time_to_rad_wait(Servo* servo, float target_rad, unsigned int duration_us, float (*ease_fn)(float));
+void servo_time_to_deg_wait(Servo* servo, float target_deg, unsigned int duration_us, float (*ease_fn)(float));
 
-void servo_speed_to_deg(Servo* servo, float angle_deg, float deg_per_sec);
+void servo_speed_to_rad(Servo* servo, float target_rad, float deg_per_sec);
+void servo_speed_to_deg(Servo* servo, float target_deg, float deg_per_sec);
 
 /* If you are using PWM IRQs for other purposes, register your IRQ handler after
  * initializing all servos and call this function at the top of your handler
- * FIXME: this is untested
+ * TODO: test this
  */
 void servo_on_pwm_wrap(void);
 
@@ -92,18 +86,6 @@ float ease_in_expo(float x);
 float ease_out_expo(float x);
 float ease_in_bounce(float x);
 float ease_out_bounce(float x);
-
-#define EASE_IN_OUT_SIGMOID(steepness) \
-    ({ \
-        float sigmoid(float x) { \
-            float s = 1.0f / (1.0f + expf(-(steepness) * (x - 0.5f))); \
-            float min = 1.0f / (1.0f + expf((steepness) / 2.0f)); \
-            float max = 1.0f / (1.0f + expf(-(steepness) / 2.0f)); \
-            return (s - min) / (max - min); \
-        } \
-        sigmoid; \
-    })
-
 float ease_inverse_smoothstep(float x);
 
 #endif

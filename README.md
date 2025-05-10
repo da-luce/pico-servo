@@ -1,18 +1,22 @@
 # ⚙️ Pico Servo Driver
 
-A small, efficient, and robust library designed for controlling servos on the RP2040/2350. It comes with useful features like easing and more, allowing you to easily integrate precise servo control into your projects.
+A small, efficient, and robust library designed for controlling servos on the RP[2040](https://datasheets.raspberrypi.com/rp2040/rp2040-datasheet.pdf)/[2350](https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf). It comes with useful features like easing and more, allowing you to easily integrate precise servo control into your projects.
 
-This project was tested on [MG90S](https://towerpro.com.tw/product/mg90s-3/) servos and a [Pico 2 W](https://datasheets.raspberrypi.com/picow/pico-2-w-datasheet.pdf). It should work on all other Pico variants, and most servos.
-
-To use the library, simply add `servo.c` and `servo.h` to your project.
+This project was tested on [MG90S](https://towerpro.com.tw/product/mg90s-3/) servos and a [Pico 2 W](https://datasheets.raspberrypi.com/picow/pico-2-w-datasheet.pdf). It should work on all other Pico variants, and most servos. To use the library, simply add `servo.c` and `servo.h` to your project.
 
 ![MG90S servo performing a test sequence](media/servo.gif)
 
 ## Examples
 
+You may try examples by updating the `EXAMPLE_NAME` variable in [CMakeLists.txt](./CMakeLists.txt) to point to the desired source file, e.g.
+
+```c
+set(EXAMPLE_NAME examples/basic)
+```
+
 ### Basic
 
-Here's a [minimal example](./examples/basic.c) showing how to configure and control a servo using the Servo struct:
+The [basic example](./examples/basic.c) showing how to configure and control a servo using the Servo struct:
 
 ```c
 #include "servo.h"
@@ -51,7 +55,7 @@ int main()
 }
 ```
 
-## Multiple Servos
+### Multiple Servos
 
 As mentioned above, all functions wait until the specified servo is available before starting a new movement. This means you can issue commands to different servos concurrently, and they will begin moving in parallel:
 
@@ -73,50 +77,56 @@ servo_time_to_deg(&servoB, 180.0f, SEC, ease_lin);
 servo_time_to_deg(&servoB, 0.0f, SEC, ease_lin);
 ```
 
-Given this, to coordinate movements more cleanly, it's often a good idea to control each servo from a dedicated thread or protothread, like in the [multithreading example](./examples/threading/multi_threading.c).
-
-## TODO
-
-- [ ] Iron out edge case bugs (see FIXMEs)
-- [ ] Add ability to interrupt ease functions
-- [ ] Add functions for servos with position feedback
-- [ ] Test other servos
-- [ ] Test multiple servos at the same time
+Given this, to cooordinate movements more cleanly, it's often a good idea to control each servo from a dedicated thread or [protothread](https://dunkels.com/adam/pt/), like in the [multithreading example](./examples/threading/multi_threading.c).
 
 ## API
+
+To initialize a servo structure, call `servo_init`.
+
+> [!NOTE]
+> Each servo must use a GPIO mapped to a unique [PWM slice](https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf#%5B%7B%22num%22%3A1077%2C%22gen%22%3A0%7D%2C%7B%22name%22%3A%22XYZ%22%7D%2C115%2C165.63628%2Cnull%5D).
+> While the Pico exposes 24 PWM channels, only 12 independent slices are available—thus this library supports up to 12 servos.
 
 All functions wait until the servo is available before initiating a new movement.
 However, once the movement begins, the function returns immediately.
 If you want the function to block until the movement is fully completed,
 use the corresponding `_wait` variant.
 
-| **Control Type** | **Functions**                                | **Description**                                                                              |
-| ---------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Position         | `servo_set_deg`<br>`servo_set_rad`           | Move the servo directly to the specified angle.                                              |
-| Time             | `servo_time_to_deg`<br>`servo_time_to_rad`   | Move the servo to the specified angle over a set duration, with a specified easing function. |
-| Speed            | `servo_speed_to_deg`<br>`servo_speed_to_rad` | Move the servo to the specified angle at a defined speed.                                    |
+> [!WARNING]
+> For position control functions, the wait time is estimated using the provided servo speed if [position feedback](https://learn.adafruit.com/analog-feedback-servos/about-servos-and-feedback) is not available. However, the speed of a servo is dependent not only it's formal specification, but the angle delta and torque on the motor. Thus, the waiting functions provide a general estimate on blocking time without position feeback.
 
-The following easing functions are provided for the timed commands
+| **Control Type** | **Functions**                                | **Description**                                                                              | **Details**                                                                 |
+| ---------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Position         | `servo_set_deg`<br>`servo_set_rad`           | Move the servo directly to the specified angle.                                              |                                                                             |
+| Time             | `servo_time_to_deg`<br>`servo_time_to_rad`   | Move the servo to the specified angle over a set duration, with a specified easing function. | This is implemented with interrupts, and thus runs in the background.       |
+| Speed            | `servo_speed_to_deg`<br>`servo_speed_to_rad` | Move the servo to the specified angle at a defined speed.                                    | This is simply a nice wrapper which uses the Time functions under the hood. |
 
-| **Type**      | **Function Name** | **Description**                                       |
-| ------------- | ------------- | ----------------------------------------------------- |
-| `Linear`      | `ease_lin`    | Constant-speed transition.                            |
-| `Ease In`     |               | Starts slow, speeds up (e.g. quadratic, exponential). |
-| `Ease Out`    |               | Starts fast, slows to target.                         |
-| `Ease In-Out` |               | Combines both for smooth transitions.                 |
-| `Sine`        |               | Smooth, sinusoidal motion.                            |
-| `Bounce`      |               | Simulates bounce-back at the end of motion.           |
-
-## Waiting Functions
-
-Warning: the speed of a servo is dependent not only it's formal specification, but the requested angle delta and torque on the motor. Thus, the waiting functions provide a general estimate on blocking time, but not exact, unless feedback is provided.
-
-## Important Notes
-
-- Each servo must use a GPIO mapped to a unique [PWM slice](https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf#%5B%7B%22num%22%3A1077%2C%22gen%22%3A0%7D%2C%7B%22name%22%3A%22XYZ%22%7D%2C115%2C165.63628%2Cnull%5D)
-- Servos must be configured to use GPIOs on separate
-- While the Pico exposes 24 PWM channels, only 12 independent slices are available—this library supports up to 12 servos.
-- It's your responsibility to ensure that servos are not commanded beyond their mechanical speed or range limits
-- If you are using PWM IRQs for other purposes, register your IRQ handler after
+> [!IMPORTANT]
+> If you are using PWM IRQs for other purposes, register your IRQ handler after
   initializing all servos and call `servo_on_pwm_wrap()` at the top of your handler (this is untested)
 
+> [!CAUTION]
+> Commanding large, fast movements while the servo is under load can also cause wear or breakage. Use easing and/or the `_wait` function variants for safer transitions.
+
+### Easing Functions
+
+The following easing functions are provided for the timed commands (feel free to make your own too!)
+These functions map a progress value `x` from `[0.0, 1.0]` to an eased output in `[0.0, 1.0]`.
+
+| **Category** | **Function Name(s)**                      | **Description**                                                    |
+| ------------ | ----------------------------------------- | ------------------------------------------------------------------ |
+| Linear       | `ease_lin`                                | Constant-speed transition.                                         |
+| Sine         | `ease_sin`                                | Smooth sinusoidal acceleration and deceleration.                   |
+| Ease In      | `ease_in_quad`, `ease_in_expo`            | Starts slow, then accelerates.                                     |
+| Ease Out     | `ease_out_quad`, `ease_out_expo`          | Starts fast, then decelerates.                                     |
+| Ease In-Out  | *(combine an In + Out function manually)* | Smooth start and end—custom blend.                                 |
+| Bounce       | `ease_in_bounce`, `ease_out_bounce`       | Simulates elastic bounce-in or bounce-out--more fun than practical. |
+
+## TODO
+
+- [ ] Iron out edge case bugs (see FIXMEs)
+- [ ] Further testing (see TODOs)
+- [ ] Add automated code testing
+- [ ] Interrupt ease functions
+- [ ] Add support for servos with position feedback
+- [ ] Test other servos
