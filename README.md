@@ -2,7 +2,7 @@
 
 A small, efficient, and robust library designed for controlling servos on the RP[2040](https://datasheets.raspberrypi.com/rp2040/rp2040-datasheet.pdf)/[2350](https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf). It comes with useful features like easing and more, allowing you to easily integrate precise servo control into your projects.
 
-This project was tested on [MG90S](https://towerpro.com.tw/product/mg90s-3/) servos and a [Pico 2 W](https://datasheets.raspberrypi.com/picow/pico-2-w-datasheet.pdf). It should work on all other Pico variants, and most servos. To use the library, simply add `servo.c` and `servo.h` to your project.
+This project was tested on [MG90S](https://towerpro.com.tw/product/mg90s-3/) servos and a [Pico 2 W](https://datasheets.raspberrypi.com/picow/pico-2-w-datasheet.pdf). It should work on all other Pico variants, and most servos. To use the library, simply add `src/servo.c` and `src/servo.h` to your project.
 
 ![MG90S servo performing a test sequence](media/servo.gif)
 
@@ -93,11 +93,11 @@ servo_time_to_deg(&servoB, 180.0f, SEC, ease_lin);
 servo_time_to_deg(&servoB, 0.0f, SEC, ease_lin);
 ```
 
-Given this, to cooordinate movements more cleanly, it's often a good idea to control each servo from a dedicated thread or [protothread](https://dunkels.com/adam/pt/), like in the [multithreading example](./examples/threading/multi_threading.c).
+Given this, to coordinate movements more cleanly, it's sometimes a good idea to control each servo from a dedicated thread or [protothread](https://dunkels.com/adam/pt/), like in the [multithreading example](./examples/threading/multi_threading.c).
 
 ## API
 
-To initialize a servo structure, call `servo_init`. Use `servo_deinit` to disable and reset the servo when it's no longer needed. **Failing to call `servo_init` will result in strange behavior.**
+To initialize a servo structure, call `servo_init`. **Failing to do so may cause unexpected behavior.** Use `servo_deinit` to disable and reset the servo when it's no longer needed.
 
 > [!NOTE]
 > Each servo must use a GPIO mapped to a unique [PWM slice](https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf#%5B%7B%22num%22%3A1077%2C%22gen%22%3A0%7D%2C%7B%22name%22%3A%22XYZ%22%7D%2C115%2C165.63628%2Cnull%5D).
@@ -118,7 +118,7 @@ use the corresponding `_wait` variant.
 | Speed            | `servo_speed_to_deg`<br>`servo_speed_to_rad` | Move the servo to the specified angle at a defined speed.                                    | This is simply a nice wrapper which uses the Time functions under the hood. The non-wait variants may be canceled. Upon completion, these functions support a callback. |
 
 > [!IMPORTANT]
-> If you're using PWM IRQs for other purposes, register your IRQ handler as shared. You can do this either before or after initializing all servos. In your handler, ensure that you only handle interrupts for the slices you are controlling. For an example, refer to [other_irq.c](./examples/other_irq.c).
+> If you're using PWM IRQs for other purposes, register your IRQ handler as shared. You can do this either before or after initializing your servos. In your handler, ensure that you only handle interrupts for the slices you are controlling. For an example, refer to [other_irq.c](./examples/other_irq.c).
 
 > [!CAUTION]
 > Commanding large, fast movements while the servo is under load can also cause wear or breakage. Use easing and/or the `_wait` function variants for safer transitions.
@@ -144,7 +144,8 @@ These functions map a progress value `x` from `[0.0, 1.0]` to an eased output in
 - [ ] Add automated code testing
 - [ ] Interrupt ease functions
 - [ ] Add support for servos with position feedback
+- [ ] Add support for 360 degree servos
 - [ ] Test other servos
 - [ ] Add easing diagrams to table
-- [ ] Callback function
+- [x] Callback function
 - [x] Deinit function
