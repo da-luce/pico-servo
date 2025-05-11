@@ -97,7 +97,7 @@ Given this, to cooordinate movements more cleanly, it's often a good idea to con
 
 ## API
 
-To initialize a servo structure, call `servo_init`. Use `servo_deinit` to disable and reset the servo when it's no longer needed.
+To initialize a servo structure, call `servo_init`. Use `servo_deinit` to disable and reset the servo when it's no longer needed. **Failing to call `servo_init` will result in strange behavior.**
 
 > [!NOTE]
 > Each servo must use a GPIO mapped to a unique [PWM slice](https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf#%5B%7B%22num%22%3A1077%2C%22gen%22%3A0%7D%2C%7B%22name%22%3A%22XYZ%22%7D%2C115%2C165.63628%2Cnull%5D).
@@ -109,7 +109,7 @@ If you want the function to block until the movement is fully completed,
 use the corresponding `_wait` variant.
 
 > [!WARNING]
-> For position control functions, the wait time is estimated using the provided servo speed if [position feedback](https://learn.adafruit.com/analog-feedback-servos/about-servos-and-feedback) is not available. However, the speed of a servo is dependent not only it's formal specification, but the angle delta and torque on the motor. Thus, the waiting functions provide a general estimate on blocking time without position feeback.
+> For position control functions, the wait time is estimated using the specified servo speed when [position feedback](https://learn.adafruit.com/analog-feedback-servos/about-servos-and-feedback) is not available. However, a servo's actual speed depends not only on its rated specifications but also on factors like the angle delta and motor load. As a result, the wait functions provide only an approximate blocking time in the absence of position feedback.
 
 | **Control Type** | **Functions**                                | **Description**                                                                              | **Details**                                                                                                                                                             |
 | ---------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -118,8 +118,7 @@ use the corresponding `_wait` variant.
 | Speed            | `servo_speed_to_deg`<br>`servo_speed_to_rad` | Move the servo to the specified angle at a defined speed.                                    | This is simply a nice wrapper which uses the Time functions under the hood. The non-wait variants may be canceled. Upon completion, these functions support a callback. |
 
 > [!IMPORTANT]
-> If you are using PWM IRQs for other purposes, register your IRQ handler after
-  initializing all servos and call `servo_on_pwm_wrap()` at the top of your handler (this is untested)
+> If you're using PWM IRQs for other purposes, register your IRQ handler as shared. You can do this either before or after initializing all servos. In your handler, ensure that you only handle interrupts for the slices you are controlling. For an example, refer to [other_irq.c](./examples/other_irq.c).
 
 > [!CAUTION]
 > Commanding large, fast movements while the servo is under load can also cause wear or breakage. Use easing and/or the `_wait` function variants for safer transitions.

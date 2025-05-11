@@ -78,12 +78,6 @@ void servo_time_to_deg_wait(Servo* servo, float target_deg, unsigned int duratio
 void servo_speed_to_rad(Servo* servo, float target_rad, float deg_per_sec, volatile bool *cancel_flag);
 void servo_speed_to_deg(Servo* servo, float target_deg, float deg_per_sec, volatile bool *cancel_flag);
 
-/* If you are using PWM IRQs for other purposes, register your IRQ handler after
- * initializing all servos and call this function at the top of your handler
- * TODO: test this
- */
-void servo_on_pwm_wrap(void);
-
 /* Easing functions that map input progress from [0.0, 1.0] to an output in [0.0, 1.0]
  */
 float ease_lin(float x);

@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Change example!
-set(EXAMPLE_NAME callback)
+set(EXAMPLE_NAME other_irq)
 
 # Initialise pico_sdk from installed location
 # (note this can come from environment, CMake cache etc)

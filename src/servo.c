@@ -141,7 +141,7 @@ void _handle_servo_irq_for_slice(int slice)
     _set_deg(servo, angle);
 }
 
-void servo_on_pwm_wrap() {
+void _on_pwm_wrap() {
 
     // Get the IRQ status mask
     uint32_t irq_status = pwm_get_irq_status_mask();
@@ -278,7 +278,7 @@ void servo_init(Servo* servo)
     // Initialize IRQ for PWM globally
     static bool pwm_irq_initialized = false;
     if (!pwm_irq_initialized) {
-        irq_set_exclusive_handler(PWM_DEFAULT_IRQ_NUM(), servo_on_pwm_wrap);
+        irq_add_shared_handler(PWM_DEFAULT_IRQ_NUM(), _on_pwm_wrap, PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY);
         irq_set_enabled(PWM_DEFAULT_IRQ_NUM(), true);
         pwm_irq_initialized = true;
     }
