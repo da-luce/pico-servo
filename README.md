@@ -14,6 +14,12 @@ You may try examples by updating the `EXAMPLE_NAME` variable in [CMakeLists.txt]
 set(EXAMPLE_NAME examples/basic)
 ```
 
+### Wiring
+
+Here's a simple wiring diagram showing an MG90S servo connected to a Pico using [Wowki](wokwi.com). Power is sourced from [VBUS](https://datasheets.raspberrypi.com/pico/Pico-R3-A4-Pinout.pdf) (5V when the Pico is powered via micro-USB), which is typically safe for small servos like the MG90S. However, larger or high-torque servos may exceed the current the Pico can supply, so an external power source is recommended in those cases.
+
+![Pico connected to an MG90S servo](./media/breadboard.png)
+
 ### Basic
 
 The [basic example](./examples/basic.c) showing how to configure and control a servo using the Servo struct:
@@ -22,7 +28,7 @@ The [basic example](./examples/basic.c) showing how to configure and control a s
 #include "servo.h"
 
 Servo servo = {
-    .gpio               = 22,
+    .gpio               = 22u,
     .period_usec        = 20000u,
     .duty_min_usec      = 500u,
     .duty_max_usec      = 2500u,
@@ -130,3 +136,4 @@ These functions map a progress value `x` from `[0.0, 1.0]` to an eased output in
 - [ ] Interrupt ease functions
 - [ ] Add support for servos with position feedback
 - [ ] Test other servos
+- [ ] Add easing diagrams to table
