@@ -18,6 +18,7 @@ typedef struct {
     float start_deg;
     float end_deg;
     ease_fn_t ease_fn;
+    volatile bool *cancel_flag;     // If true, the motion should be canceled
 } Motion;
 
 typedef struct Servo {
@@ -65,8 +66,8 @@ void servo_set_deg_wait(Servo* servo, float target_deg);
  * current motion is complete. Other unrelated code continues to run during the motion.
  * Defaults to linear motion if no easing specified.
  */
-void servo_time_to_rad(Servo* servo, float target_rad, unsigned int duration_us, ease_fn_t ease_fn);
-void servo_time_to_deg(Servo* servo, float target_deg, unsigned int duration_us, ease_fn_t ease_fn);
+void servo_time_to_rad(Servo* servo, float target_rad, unsigned int duration_us, ease_fn_t ease_fn, volatile bool *cancel_flag);
+void servo_time_to_deg(Servo* servo, float target_deg, unsigned int duration_us, ease_fn_t ease_fn, volatile bool *cancel_flag);
 
 /* Schedules the servo movement in radians/degrees over the specified duration using the provided
  * easing function. This function is blocking from the caller's perspective.
@@ -74,8 +75,8 @@ void servo_time_to_deg(Servo* servo, float target_deg, unsigned int duration_us,
 void servo_time_to_rad_wait(Servo* servo, float target_rad, unsigned int duration_us, ease_fn_t ease_fn);
 void servo_time_to_deg_wait(Servo* servo, float target_deg, unsigned int duration_us, ease_fn_t ease_fn);
 
-void servo_speed_to_rad(Servo* servo, float target_rad, float deg_per_sec);
-void servo_speed_to_deg(Servo* servo, float target_deg, float deg_per_sec);
+void servo_speed_to_rad(Servo* servo, float target_rad, float deg_per_sec, volatile bool *cancel_flag);
+void servo_speed_to_deg(Servo* servo, float target_deg, float deg_per_sec, volatile bool *cancel_flag);
 
 /* If you are using PWM IRQs for other purposes, register your IRQ handler after
  * initializing all servos and call this function at the top of your handler

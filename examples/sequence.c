@@ -58,13 +58,13 @@ void test_sequence(Servo* servo)
     servo_set_deg(servo, 0.0f);
     sleep_ms(500);
 
-    servo_time_to_deg(servo, 180.0f, SEC, ease_out_bounce);
-    servo_time_to_deg(servo, 0.0f, SEC, ease_out_bounce);
+    servo_time_to_deg(servo, 180.0f, SEC, ease_out_bounce, NULL);
+    servo_time_to_deg(servo, 0.0f, SEC, ease_out_bounce, NULL);
 
-    servo_time_to_deg(servo, 180.0f, SEC, ease_in_expo);
-    servo_time_to_deg(servo, 0.0f, SEC, ease_inverse_smoothstep);
-    servo_time_to_deg(servo, 180.0f, SEC, ease_inverse_smoothstep);
-    servo_time_to_deg(servo, 0.0f, SEC, ease_out_expo);
+    servo_time_to_deg(servo, 180.0f, SEC, ease_in_expo, NULL);
+    servo_time_to_deg(servo, 0.0f, SEC, ease_inverse_smoothstep, NULL);
+    servo_time_to_deg(servo, 180.0f, SEC, ease_inverse_smoothstep, NULL);
+    servo_time_to_deg(servo, 0.0f, SEC, ease_out_expo, NULL);
 
     // Keep the core active for the last movement
     // TODO: is this a bug on the Pico, should it not be in interrupt wait mode?

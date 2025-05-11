@@ -13,16 +13,6 @@
 #define MG90S_SEC_PER_60            0.5f    // Setting this slower as I don't have a legit MG90S
 #define MG90S_MAX_ANGLE             180.0f  // 180 degrees
 
-Servo servo = {
-    .gpio               = SERVO_GPIO,
-    .period_usec        = MG90S_FRAME_PERIOD_USEC,
-    .duty_min_usec      = MG90S_PULSE_WIDTH_MIN_USEC,
-    .duty_max_usec      = MG90S_PULSE_WIDTH_MAX_USEC,
-    .start_deg    = START_ANGLE,
-    .sec_per_60         = MG90S_SEC_PER_60,
-    .max_degrees        = MG90S_MAX_ANGLE,
-};
-
 // Perform initialisation
 int pico_led_init(void) {
     #if defined(PICO_DEFAULT_LED_PIN)
@@ -48,18 +38,33 @@ void pico_set_led(bool led_on) {
     #endif
 }
 
+void flash_led()
+{
+    pico_set_led(true);
+    sleep_ms(200);
+    pico_set_led(false);
+    sleep_ms(200);
+}
+
+Servo servo = {
+    .gpio               = SERVO_GPIO,
+    .period_usec        = MG90S_FRAME_PERIOD_USEC,
+    .duty_min_usec      = MG90S_PULSE_WIDTH_MIN_USEC,
+    .duty_max_usec      = MG90S_PULSE_WIDTH_MAX_USEC,
+    .start_deg    = START_ANGLE,
+    .sec_per_60         = MG90S_SEC_PER_60,
+    .max_degrees        = MG90S_MAX_ANGLE,
+    .callback           = flash_led,
+};
+
 int main() {
 
     pico_led_init();
     servo_init(&servo);
 
-    // The servo should move as the LED blinks
-    servo_time_to_deg(&servo, 180.0f, 10 * SEC, ease_lin, NULL);
     while (true) {
-        pico_set_led(true);
-        sleep_ms(200);
-        pico_set_led(false);
-        sleep_ms(200);
+        servo_time_to_deg(&servo, 180.0f, SEC, ease_lin, NULL);
+        servo_time_to_deg(&servo, 0.0f, SEC, ease_lin, NULL);
     }
 
 }

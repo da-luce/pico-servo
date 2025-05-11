@@ -20,6 +20,16 @@ Here's a simple wiring diagram showing an MG90S servo connected to a Pico using 
 
 ![Pico connected to an MG90S servo](./media/breadboard.png)
 
+| Example                                                           | Description                                                                               |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [basic](./examples/basic.c)                                       | Demonstrates basic servo setup                                                            |
+| [callback](./examples/callback.c)                                 | Demonstrates a callback function that gets triggered when servo motion completes          |
+| [cancel](./examples/cancel.c)                                     | Shows how to cancel a servo motion mid-way using a cancel flag                            |
+| [easing](./examples/easing.c)                                     | Illustrates the use of easing functions to create smooth transitions between servo angles |
+| [non_blocking](./examples/non_blocking.c)                         | Demonstrates how to move a servo without blocking the main thread, using interrupts       |
+| [sequence](./examples/sequence.c)                                 | Demo of a servo in a sequence of movements                                                |
+| [threading/multithreading](./examples/threading/multithreading.c) | Demonstrates how to control servos concurrently using multiple protothreads.              |
+
 ### Basic
 
 The [basic example](./examples/basic.c) showing how to configure and control a servo using the Servo struct:
@@ -87,7 +97,7 @@ Given this, to cooordinate movements more cleanly, it's often a good idea to con
 
 ## API
 
-To initialize a servo structure, call `servo_init`.
+To initialize a servo structure, call `servo_init`. Use `servo_deinit` to disable and reset the servo when it's no longer needed.
 
 > [!NOTE]
 > Each servo must use a GPIO mapped to a unique [PWM slice](https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf#%5B%7B%22num%22%3A1077%2C%22gen%22%3A0%7D%2C%7B%22name%22%3A%22XYZ%22%7D%2C115%2C165.63628%2Cnull%5D).
@@ -101,11 +111,11 @@ use the corresponding `_wait` variant.
 > [!WARNING]
 > For position control functions, the wait time is estimated using the provided servo speed if [position feedback](https://learn.adafruit.com/analog-feedback-servos/about-servos-and-feedback) is not available. However, the speed of a servo is dependent not only it's formal specification, but the angle delta and torque on the motor. Thus, the waiting functions provide a general estimate on blocking time without position feeback.
 
-| **Control Type** | **Functions**                                | **Description**                                                                              | **Details**                                                                 |
-| ---------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| Position         | `servo_set_deg`<br>`servo_set_rad`           | Move the servo directly to the specified angle.                                              |                                                                             |
-| Time             | `servo_time_to_deg`<br>`servo_time_to_rad`   | Move the servo to the specified angle over a set duration, with a specified easing function. | This is implemented with interrupts, and thus runs in the background.       |
-| Speed            | `servo_speed_to_deg`<br>`servo_speed_to_rad` | Move the servo to the specified angle at a defined speed.                                    | This is simply a nice wrapper which uses the Time functions under the hood. |
+| **Control Type** | **Functions**                                | **Description**                                                                              | **Details**                                                                                                                                                             |
+| ---------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Position         | `servo_set_deg`<br>`servo_set_rad`           | Move the servo directly to the specified angle.                                              |                                                                                                                                                                         |
+| Time             | `servo_time_to_deg`<br>`servo_time_to_rad`   | Move the servo to the specified angle over a set duration, with a specified easing function. | This is implemented with interrupts, and thus runs in the background. The non-wait variants may be canceled. Upon completion, these functions support a callback.       |
+| Speed            | `servo_speed_to_deg`<br>`servo_speed_to_rad` | Move the servo to the specified angle at a defined speed.                                    | This is simply a nice wrapper which uses the Time functions under the hood. The non-wait variants may be canceled. Upon completion, these functions support a callback. |
 
 > [!IMPORTANT]
 > If you are using PWM IRQs for other purposes, register your IRQ handler after
@@ -138,4 +148,4 @@ These functions map a progress value `x` from `[0.0, 1.0]` to an eased output in
 - [ ] Test other servos
 - [ ] Add easing diagrams to table
 - [ ] Callback function
-- [ ] Deinit function
+- [x] Deinit function

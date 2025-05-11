@@ -42,8 +42,8 @@ void oscillate_to_center(Servo* servo, bool ease)
 
         if (ease)
         {
-            servo_time_to_deg(servo, left, delay_us, ease_sin);
-            servo_time_to_deg(servo, right, delay_us, ease_sin);
+            servo_time_to_deg(servo, left, delay_us, ease_sin, NULL);
+            servo_time_to_deg(servo, right, delay_us, ease_sin, NULL);
         } else {
             servo_set_deg(servo, left);
             sleep_us(delay_us);

@@ -31,10 +31,10 @@ static struct pt ptA, ptB;
 PT_THREAD(servo_task(struct pt *pt, Servo *s, bool forwards)) {
     PT_BEGIN(pt);
     while (1) {
-        servo_time_to_deg(s, forwards ? 180.0f : 0.0f, SEC, ease_lin);
+        servo_time_to_deg(s, forwards ? 180.0f : 0.0f, SEC, ease_lin, NULL);
         PT_YIELD(pt);
 
-        servo_time_to_deg(s, forwards ? 0.0f : 180.0f, SEC, ease_lin);
+        servo_time_to_deg(s, forwards ? 0.0f : 180.0f, SEC, ease_lin, NULL);
         PT_YIELD(pt);
     }
     PT_END(pt);
