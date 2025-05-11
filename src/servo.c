@@ -119,7 +119,7 @@ void _handle_servo_irq_for_slice(int slice)
         servo->_current_deg = servo->_motion.end_deg;
 
         // Release the lock and exit
-        // Mutex API is "non-IRQ" but supposodly, it's ok to release the lock in
+        // Mutex API is "non-IRQ" but supposedly, it's ok to release the lock in
         // an IRQ.
         // https://www.raspberrypi.com/documentation/pico-sdk/high_level.html#group_mutex
         mutex_exit(&servo->_mutex);
@@ -137,7 +137,7 @@ void _handle_servo_irq_for_slice(int slice)
     float angle = servo->_motion.start_deg + servo->_motion.ease_fn(t) * (servo->_motion.end_deg - servo->_motion.start_deg);
 
     // IMPORTANT: Make sure to use the unprotected function call, otherwise we
-    // spin here forever becuase we already have the mutex!
+    // spin here forever because we already have the mutex!
     _set_deg(servo, angle);
 }
 

@@ -1,4 +1,5 @@
 #include "pico/cyw43_arch.h"
+#include "pico/stdlib.h"
 
 #include "servo.h"
 
@@ -38,12 +39,13 @@ void pico_set_led(bool led_on) {
     #endif
 }
 
-void flash_led()
+volatile bool forwards = true;
+
+void callback_fn(Servo* s)
 {
-    pico_set_led(true);
-    sleep_ms(200);
-    pico_set_led(false);
-    sleep_ms(200);
+    forwards = !forwards;
+    pico_set_led(forwards ? false : true);
+    servo_time_to_deg(s, forwards ? 180.0f : 0.0f, SEC, ease_lin, NULL);
 }
 
 Servo servo = {
@@ -51,20 +53,29 @@ Servo servo = {
     .period_usec        = MG90S_FRAME_PERIOD_USEC,
     .duty_min_usec      = MG90S_PULSE_WIDTH_MIN_USEC,
     .duty_max_usec      = MG90S_PULSE_WIDTH_MAX_USEC,
-    .start_deg    = START_ANGLE,
+    .start_deg          = START_ANGLE,
     .sec_per_60         = MG90S_SEC_PER_60,
     .max_degrees        = MG90S_MAX_ANGLE,
-    .callback           = flash_led,
+    .callback           = callback_fn,
 };
 
 int main() {
 
+    stdio_init_all();
+    setvbuf(stdout, NULL, _IONBF, 0);
+    printf("EEEE");
     pico_led_init();
     servo_init(&servo);
+    sleep_ms(3000);
 
-    while (true) {
-        servo_time_to_deg(&servo, 180.0f, SEC, ease_lin, NULL);
-        servo_time_to_deg(&servo, 0.0f, SEC, ease_lin, NULL);
+    pico_set_led(true);
+    sleep_ms(100);
+    pico_set_led(false);
+
+    servo_time_to_deg(&servo, 180.0f, SEC, ease_lin, NULL);
+
+    while(true)
+    {
+        tight_loop_contents();
     }
-
 }
