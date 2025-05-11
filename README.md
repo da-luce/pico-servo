@@ -8,6 +8,12 @@ This project was tested on [MG90S](https://towerpro.com.tw/product/mg90s-3/) ser
 
 ## Examples
 
+You may try examples by updating the `EXAMPLE_NAME` variable in [CMakeLists.txt](./CMakeLists.txt) to point to the desired source file, e.g.
+
+```c
+set(EXAMPLE_NAME examples/basic)
+```
+
 ### Wiring
 
 Here's a simple wiring diagram showing an MG90S servo connected to a Pico using [Wowki](https://wokwi.com/pi-pico). Power is sourced from [VBUS](https://datasheets.raspberrypi.com/pico/Pico-R3-A4-Pinout.pdf) (5V when the Pico is powered via micro-USB), which is typically safe for small servos like the MG90S. However, larger or high-torque servos may exceed the current the Pico can supply, so an external power source is recommended in those cases.
@@ -137,9 +143,9 @@ These functions map a progress value `x` from `[0.0, 1.0]` to an eased output in
 - [ ] Iron out edge case bugs (see FIXMEs)
 - [ ] Further testing (see TODOs)
 - [ ] Add automated code testing
-- [x] Interrupt ease functions
+- [ ] Interrupt ease functions
 - [ ] Add support for servos with position feedback
 - [ ] Test other servos
 - [ ] Add easing diagrams to table
-- [x] Callback function
+- [ ] Callback function
 - [x] Deinit function
