@@ -1,5 +1,4 @@
 #include "pico/cyw43_arch.h"
-#include "pico/stdlib.h"
 
 #include "servo.h"
 
@@ -61,19 +60,21 @@ Servo servo = {
 
 int main() {
 
-    stdio_init_all();
-    setvbuf(stdout, NULL, _IONBF, 0);
-    printf("EEEE");
     pico_led_init();
     servo_init(&servo);
-    sleep_ms(3000);
+    sleep_ms(500);
 
+    // FIXME: The first call to callback_fn *from the ISR* takes longer than expected.
+    // This may be due to a cache miss or an issue with the LED control.
     pico_set_led(true);
-    sleep_ms(100);
     pico_set_led(false);
 
+    // Start the servo movement, the rest of the logic will be handled through
+    // interrupts via the callback
     servo_time_to_deg(&servo, 180.0f, SEC, ease_lin, NULL);
 
+    // Add a loop here to prevent processor from exiting (all motor control is
+    // done through interrupts)
     while(true)
     {
         tight_loop_contents();

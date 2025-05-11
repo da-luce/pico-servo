@@ -11,7 +11,7 @@ typedef struct Servo Servo; // Typedef for ease of use
 typedef float (*ease_fn_t)(float);
 typedef void (*servo_callback_t)(Servo *);
 
-// Everthing needed to track a motion between two angles
+// Everything needed to track a motion between two angles
 typedef struct {
     unsigned int duration_us;
     unsigned int current_time_us;
