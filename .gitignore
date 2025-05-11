@@ -1,2 +1,5 @@
 build
 .vscode/
+CMakeLists.txt
+pico_sdk_import.cmake
+output
