@@ -23,13 +23,14 @@ typedef struct {
     float start_deg;                // Angle to start at
     float sec_per_60;               // Speed to move 60 degrees (Defaults to 0.5)
     float max_degrees;              // Maximum allowable rotation angle of the servo in degrees  (Defaults to 180)
-    // These are filled in automatically
-    float max_rad;
-    unsigned int slice_num;
-    unsigned int channel_num;
-    volatile float current_deg;     // Track current angle
-    volatile Motion motion;
-    mutex_t mutex;                  // Ensure we don't schedule multiple movements at once
+
+    /* Private fields */
+    float _max_rad;
+    unsigned int _pwm_slice;
+    unsigned int _pwm_channel;
+    volatile float _current_deg;    // Track current angle
+    volatile Motion _motion;
+    mutex_t _mutex;                 // Ensure we don't schedule multiple movements at once
 } Servo;
 
 /* Initialize hardware and structures required to drive a servo.

@@ -66,7 +66,7 @@
 #define NUM_ITEMS 32
 #define BUFSIZE 8
 
-static struct pt_sem mutex, full, empty;
+static struct pt_sem _mutex, full, empty;
 
 PT_THREAD(producer(struct pt *pt))
 {
@@ -78,9 +78,9 @@ PT_THREAD(producer(struct pt *pt))
   
     PT_SEM_WAIT(pt, &full);
     
-    PT_SEM_WAIT(pt, &mutex);
+    PT_SEM_WAIT(pt, &_mutex);
     add_to_buffer(produce_item());    
-    PT_SEM_SIGNAL(pt, &mutex);
+    PT_SEM_SIGNAL(pt, &_mutex);
     
     PT_SEM_SIGNAL(pt, &empty);
   }
@@ -98,9 +98,9 @@ PT_THREAD(consumer(struct pt *pt))
     
     PT_SEM_WAIT(pt, &empty);
     
-    PT_SEM_WAIT(pt, &mutex);    
+    PT_SEM_WAIT(pt, &_mutex);    
     consume_item(get_from_buffer());    
-    PT_SEM_SIGNAL(pt, &mutex);
+    PT_SEM_SIGNAL(pt, &_mutex);
     
     PT_SEM_SIGNAL(pt, &full);
   }
@@ -116,7 +116,7 @@ PT_THREAD(driver_thread(struct pt *pt))
   
   PT_SEM_INIT(&empty, 0);
   PT_SEM_INIT(&full, BUFSIZE);
-  PT_SEM_INIT(&mutex, 1);
+  PT_SEM_INIT(&_mutex, 1);
 
   PT_INIT(&pt_producer);
   PT_INIT(&pt_consumer);
@@ -131,8 +131,8 @@ PT_THREAD(driver_thread(struct pt *pt))
  * The program uses three protothreads: one protothread that
  * implements the consumer, one thread that implements the producer,
  * and one protothread that drives the two other protothreads. The
- * program uses three semaphores: "full", "empty" and "mutex". The
- * "mutex" semaphore is used to provide mutual exclusion for the
+ * program uses three semaphores: "full", "empty" and "_mutex". The
+ * "_mutex" semaphore is used to provide mutual exclusion for the
  * buffer, the "empty" semaphore is used to block the consumer is the
  * buffer is empty, and the "full" semaphore is used to block the
  * producer is the buffer is full.

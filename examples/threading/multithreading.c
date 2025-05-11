@@ -13,37 +13,28 @@
 #define MG90S_SEC_PER_60            0.5f    // Setting this slower as I don't have a legit MG90S
 #define MG90S_MAX_ANGLE             180.0f  // 180 degrees
 
-Servo servoA = {
-    .gpio               = SERVOA_GPIO,
-    .period_usec        = MG90S_FRAME_PERIOD_USEC,
-    .duty_min_usec      = MG90S_PULSE_WIDTH_MIN_USEC,
-    .duty_max_usec      = MG90S_PULSE_WIDTH_MAX_USEC,
-    .start_deg          = 0.0f,
-    .sec_per_60         = MG90S_SEC_PER_60,
-    .max_degrees        = MG90S_MAX_ANGLE,
-};
+#define MG90S_SERVO(gpio_pin, start_angle) \
+    (Servo){                               \
+        .gpio = (gpio_pin),                \
+        .period_usec = MG90S_FRAME_PERIOD_USEC,     \
+        .duty_min_usec = MG90S_PULSE_WIDTH_MIN_USEC,\
+        .duty_max_usec = MG90S_PULSE_WIDTH_MAX_USEC,\
+        .start_deg = (start_angle),        \
+        .sec_per_60 = MG90S_SEC_PER_60,    \
+        .max_degrees = MG90S_MAX_ANGLE     \
+    }
 
-Servo servoB = {
-    .gpio               = SERVOB_GPIO,
-    .period_usec        = MG90S_FRAME_PERIOD_USEC,
-    .duty_min_usec      = MG90S_PULSE_WIDTH_MIN_USEC,
-    .duty_max_usec      = MG90S_PULSE_WIDTH_MAX_USEC,
-    .start_deg          = 180.0f,
-    .sec_per_60         = MG90S_SEC_PER_60,
-    .max_degrees        = MG90S_MAX_ANGLE,
-};
+Servo servoA = MG90S_SERVO(SERVOA_GPIO, 0.0f);
+Servo servoB = MG90S_SERVO(SERVOB_GPIO, 180.0f);
 
 static struct pt ptA, ptB;
-
 PT_THREAD(servo_task(struct pt *pt, Servo *s, bool forwards)) {
     PT_BEGIN(pt);
     while (1) {
-        float angle = forwards ? 180.0f : 0.0f;
-        servo_time_to_deg(s, angle, SEC, ease_lin);
+        servo_time_to_deg(s, forwards ? 180.0f : 0.0f, SEC, ease_lin);
         PT_YIELD(pt);
 
-        angle = forwards ? 0.0f : 180.0f;
-        servo_time_to_deg(s, angle, SEC, ease_lin);
+        servo_time_to_deg(s, forwards ? 0.0f : 180.0f, SEC, ease_lin);
         PT_YIELD(pt);
     }
     PT_END(pt);

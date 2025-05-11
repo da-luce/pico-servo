@@ -40,18 +40,18 @@ void set_rad(Servo* servo, float target_rad)
     if (target_rad < 0.0f)
     {
         target_rad = 0.0f;
-    } else if (target_rad > servo->max_rad)
+    } else if (target_rad > servo->_max_rad)
     {
-        target_rad = servo->max_rad;
+        target_rad = servo->_max_rad;
     }
 
     // Set the duty cycle to achieve the angle
     // Map angle to duty cycle
-    unsigned int duty_usec = target_rad / servo->max_rad * (servo->duty_max_usec - servo->duty_min_usec) + servo->duty_min_usec;
+    unsigned int duty_usec = target_rad / servo->_max_rad * (servo->duty_max_usec - servo->duty_min_usec) + servo->duty_min_usec;
     unsigned int duty_val = (sys_hz / CLKDIV) * duty_usec / MICRO_PER_SEC;
-    pwm_set_chan_level(servo->slice_num, servo->channel_num, duty_val); 
+    pwm_set_chan_level(servo->_pwm_slice, servo->_pwm_channel, duty_val); 
 
-    servo->current_deg = TO_DEG(target_rad);
+    servo->_current_deg = TO_DEG(target_rad);
 }
 
 /* Private. Uprotected: sets the servo angle in degrees without checking the
@@ -65,12 +65,12 @@ void set_deg(Servo* servo, float target_deg)
 void servo_set_rad(Servo* servo, float target_rad)
 {
     // Wait until we can use the servo
-    mutex_enter_blocking(&servo->mutex);
+    mutex_enter_blocking(&servo->_mutex);
 
     set_rad(servo, target_rad);
 
     // Release the lock
-    mutex_exit(&servo->mutex);
+    mutex_exit(&servo->_mutex);
 }
 
 void servo_set_deg(Servo* servo, float target_deg)
@@ -86,7 +86,7 @@ int time_to_move_ms(float distance_deg, float sec_per_60_deg)
 void servo_set_rad_wait(Servo* servo, float target_rad)
 {
     float target_deg = TO_DEG(target_rad);
-    int wait_ms = time_to_move_ms(fabsf(target_deg - servo->current_deg), servo->sec_per_60);
+    int wait_ms = time_to_move_ms(fabsf(target_deg - servo->_current_deg), servo->sec_per_60);
     servo_set_rad(servo, target_rad);
     sleep_ms(wait_ms);
 }
@@ -107,27 +107,27 @@ void handle_servo_irq_for_slice(int slice)
     // Get the servo associated with this slice
     Servo* servo = registered_servos[slice];
 
-    // Determine how far we are into the motion
-    servo->motion.current_time_us += servo->period_usec;
-    if (servo->motion.current_time_us > servo->motion.duration_us)
+    // Determine how far we are into the _motion
+    servo->_motion.current_time_us += servo->period_usec;
+    if (servo->_motion.current_time_us > servo->_motion.duration_us)
     {
-        // We have reached the end of the motion, no more interrupts
-        pwm_set_irq_enabled(servo->slice_num, false);
+        // We have reached the end of the _motion, no more interrupts
+        pwm_set_irq_enabled(servo->_pwm_slice, false);
 
         // Update the current angle
-        servo->current_deg = servo->motion.end_deg;
+        servo->_current_deg = servo->_motion.end_deg;
 
         // Release the lock and exit
         // Mutex API is "non-IRQ" but supposodly, it's ok to release the lock in
         // an IRQ.
         // https://www.raspberrypi.com/documentation/pico-sdk/high_level.html#group_mutex
-        mutex_exit(&servo->mutex);
+        mutex_exit(&servo->_mutex);
         return;
     }
 
     // Otherwise, set the next angle
-    float t = (float) servo->motion.current_time_us /  (float) servo->motion.duration_us;
-    float angle = servo->motion.start_deg + servo->motion.ease_fn(t) * (servo->motion.end_deg - servo->motion.start_deg);
+    float t = (float) servo->_motion.current_time_us /  (float) servo->_motion.duration_us;
+    float angle = servo->_motion.start_deg + servo->_motion.ease_fn(t) * (servo->_motion.end_deg - servo->_motion.start_deg);
 
     // IMPORTANT: Make sure to use the unprotected function call, otherwise we
     // spin here forever becuase we already have the mutex!
@@ -159,28 +159,28 @@ void servo_on_pwm_wrap() {
 void servo_time_to_rad(Servo* servo, float target_rad, unsigned int duration_us, float (*ease_fn)(float))
 {
     // Wait until we can use the servo
-    mutex_enter_blocking(&servo->mutex);
+    mutex_enter_blocking(&servo->_mutex);
 
-    // Default to linear motion
+    // Default to linear _motion
     if (ease_fn == NULL) {
         ease_fn = ease_lin;
     }
 
     // Mask our slice's IRQ output into the PWM block's single interrupt line,
     // and register our interrupt handler
-    pwm_clear_irq(servo->slice_num);
-    pwm_set_irq_enabled(servo->slice_num, true);
+    pwm_clear_irq(servo->_pwm_slice);
+    pwm_set_irq_enabled(servo->_pwm_slice, true);
 
-    // Set the motion
-    servo->motion.current_time_us = 0u;
-    servo->motion.duration_us = duration_us;
-    servo->motion.start_deg = servo->current_deg;
-    servo->motion.end_deg = TO_DEG(target_rad);
-    servo->motion.ease_fn = ease_fn;
+    // Set the _motion
+    servo->_motion.current_time_us = 0u;
+    servo->_motion.duration_us = duration_us;
+    servo->_motion.start_deg = servo->_current_deg;
+    servo->_motion.end_deg = TO_DEG(target_rad);
+    servo->_motion.ease_fn = ease_fn;
 
     return;
 
-    // The mutex will be freed by the interrupt handler once the motion has ended
+    // The mutex will be freed by the interrupt handler once the _motion has ended
 }
 
 void servo_time_to_deg(Servo* servo, float target_deg, unsigned int duration_us, float (*ease_fn)(float))
@@ -196,11 +196,11 @@ void servo_time_to_rad_wait(Servo* servo, float target_rad, unsigned int duratio
     sleep_us(duration_us);
 
     // Since interrupts introduce additional overhead (~20 µs on the RP2350), spin on the mutex
-    // to ensure the motion fully completes. I.e., if main exits, no further interrupts will
+    // to ensure the _motion fully completes. I.e., if main exits, no further interrupts will
     // be handled. This is only a problem if this is the last code to run in the program. Even if not,
     // we want to avoid timing issues between mutiple sequential ease_wait calls
-    mutex_enter_blocking(&servo->mutex);
-    mutex_exit(&servo->mutex);
+    mutex_enter_blocking(&servo->_mutex);
+    mutex_exit(&servo->_mutex);
 }
 void servo_time_to_deg_wait(Servo* servo, float target_deg, unsigned int duration_us, float (*ease_fn)(float))
 {
@@ -210,7 +210,7 @@ void servo_time_to_deg_wait(Servo* servo, float target_deg, unsigned int duratio
 void servo_speed_to_rad(Servo* servo, float target_rad, float deg_per_sec)
 {
     // TODO: no mutex needed here?
-    float delta_deg = fabsf(TO_DEG(target_rad) - servo->current_deg);
+    float delta_deg = fabsf(TO_DEG(target_rad) - servo->_current_deg);
     unsigned int time_us = (unsigned int) (delta_deg / deg_per_sec) * MICRO_PER_SEC;
 
     servo_time_to_rad(servo, target_rad, time_us, ease_lin);
@@ -231,15 +231,15 @@ void servo_init(Servo* servo)
     gpio_set_function(servo->gpio, GPIO_FUNC_PWM);
 
     // Find out which PWM slice is connected to GPIO
-    unsigned int slice_num = pwm_gpio_to_slice_num(servo->gpio);
-    unsigned int channel_num = pwm_gpio_to_channel(servo->gpio);
+    unsigned int _pwm_slice = pwm_gpio_to_slice_num(servo->gpio);
+    unsigned int _pwm_channel = pwm_gpio_to_channel(servo->gpio);
 
-    servo->slice_num = slice_num;
-    servo->channel_num = channel_num;
+    servo->_pwm_slice = _pwm_slice;
+    servo->_pwm_channel = _pwm_channel;
 
     // Track this servo globally
-    assert(registered_servos[servo->slice_num] == NULL);
-    registered_servos[servo->slice_num] = servo;
+    assert(registered_servos[servo->_pwm_slice] == NULL);
+    registered_servos[servo->_pwm_slice] = servo;
 
     // Set defaults for unset fields
     if (!servo->sec_per_60)
@@ -251,7 +251,7 @@ void servo_init(Servo* servo)
     {
         servo->max_degrees = 180.0f;
     }
-    servo->max_rad = TO_RAD(servo->max_degrees);
+    servo->_max_rad = TO_RAD(servo->max_degrees);
     assert(servo->max_degrees > 0.0f);
     assert(servo->max_degrees <= 360.0f);
 
@@ -259,13 +259,13 @@ void servo_init(Servo* servo)
 
     sys_hz = clock_get_hz(clk_sys);
     // Given CLKDIV, figure out how many cycles are required to achieve servo.period_usec
-    pwm_set_clkdiv(slice_num, CLKDIV) ;
+    pwm_set_clkdiv(_pwm_slice, CLKDIV) ;
     unsigned int wrap_val = (sys_hz / CLKDIV) * servo->period_usec / MICRO_PER_SEC;
     // Max unit16 is 65535, so we need a high clockdiv to work with overclocking
-    pwm_set_wrap(slice_num, wrap_val);
+    pwm_set_wrap(_pwm_slice, wrap_val);
 
     // Initialize the servo mutex
-    mutex_init(&servo->mutex);
+    mutex_init(&servo->_mutex);
 
     // Initialize IRQ for PWM globally
     static bool pwm_irq_initialized = false;
@@ -276,12 +276,12 @@ void servo_init(Servo* servo)
     }
 
     // Disable IRQs for this slice, we will enable when we want to use during
-    // a motion
-    pwm_set_irq_enabled(slice_num, false);
+    // a _motion
+    pwm_set_irq_enabled(_pwm_slice, false);
 
     // Set the duty cycle to the starting angle and start
     servo_set_deg(servo, servo->start_deg);
-    pwm_set_enabled(servo->slice_num, true);
+    pwm_set_enabled(servo->_pwm_slice, true);
 }
 
 
