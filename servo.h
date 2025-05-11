@@ -6,16 +6,21 @@
 
 #include "pico/sync.h"
 
+struct Servo; // Forward declaration
+typedef struct Servo Servo; // Typedef for ease of use
+typedef float (*ease_fn_t)(float);
+typedef void (*servo_callback_t)(Servo *);
+
 // Everthing needed to track a motion between two angles
 typedef struct {
     unsigned int duration_us;
     unsigned int current_time_us;
     float start_deg;
     float end_deg;
-    float (*ease_fn)(float);
+    ease_fn_t ease_fn;
 } Motion;
 
-typedef struct {
+typedef struct Servo {
     unsigned int gpio;              // GPIO that servo is attached to
     unsigned int period_usec;       // Period of control signal in usec
     unsigned int duty_min_usec;     // Duty cycle of minumum angle in usec
@@ -23,6 +28,7 @@ typedef struct {
     float start_deg;                // Angle to start at
     float sec_per_60;               // Speed to move 60 degrees (Defaults to 0.5)
     float max_degrees;              // Maximum allowable rotation angle of the servo in degrees  (Defaults to 180)
+    servo_callback_t callback;      // Callback on motion complete
 
     /* Private fields */
     float _max_rad;
@@ -59,14 +65,14 @@ void servo_set_deg_wait(Servo* servo, float target_deg);
  * current motion is complete. Other unrelated code continues to run during the motion.
  * Defaults to linear motion if no easing specified.
  */
-void servo_time_to_rad(Servo* servo, float target_rad, unsigned int duration_us, float (*ease_fn)(float));
-void servo_time_to_deg(Servo* servo, float target_deg, unsigned int duration_us, float (*ease_fn)(float));
+void servo_time_to_rad(Servo* servo, float target_rad, unsigned int duration_us, ease_fn_t ease_fn);
+void servo_time_to_deg(Servo* servo, float target_deg, unsigned int duration_us, ease_fn_t ease_fn);
 
 /* Schedules the servo movement in radians/degrees over the specified duration using the provided
  * easing function. This function is blocking from the caller's perspective.
  */
-void servo_time_to_rad_wait(Servo* servo, float target_rad, unsigned int duration_us, float (*ease_fn)(float));
-void servo_time_to_deg_wait(Servo* servo, float target_deg, unsigned int duration_us, float (*ease_fn)(float));
+void servo_time_to_rad_wait(Servo* servo, float target_rad, unsigned int duration_us, ease_fn_t ease_fn);
+void servo_time_to_deg_wait(Servo* servo, float target_deg, unsigned int duration_us, ease_fn_t ease_fn);
 
 void servo_speed_to_rad(Servo* servo, float target_rad, float deg_per_sec);
 void servo_speed_to_deg(Servo* servo, float target_deg, float deg_per_sec);

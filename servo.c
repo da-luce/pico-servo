@@ -32,10 +32,10 @@ static Servo* registered_servos[NUM_PWM_SLICES];
 /* Simple movement **********************************************************/
 
 
-/* Private. Uprotected: sets the servo angle in radians without checking the
+/* Private. Unprotected: sets the servo angle in radians without checking the
  * mutex.
  */
-void set_rad(Servo* servo, float target_rad)
+void _set_rad(Servo* servo, float target_rad)
 {
     if (target_rad < 0.0f)
     {
@@ -54,12 +54,12 @@ void set_rad(Servo* servo, float target_rad)
     servo->_current_deg = TO_DEG(target_rad);
 }
 
-/* Private. Uprotected: sets the servo angle in degrees without checking the
+/* Private. Unprotected: sets the servo angle in degrees without checking the
  * mutex.
  */
-void set_deg(Servo* servo, float target_deg)
+void _set_deg(Servo* servo, float target_deg)
 {
-    set_rad(servo, TO_RAD(target_deg));
+    _set_rad(servo, TO_RAD(target_deg));
 }
 
 void servo_set_rad(Servo* servo, float target_rad)
@@ -67,7 +67,7 @@ void servo_set_rad(Servo* servo, float target_rad)
     // Wait until we can use the servo
     mutex_enter_blocking(&servo->_mutex);
 
-    set_rad(servo, target_rad);
+    _set_rad(servo, target_rad);
 
     // Release the lock
     mutex_exit(&servo->_mutex);
@@ -100,16 +100,17 @@ void servo_set_deg_wait(Servo* servo, float target_deg)
 /* Easing functions ***********************************************************/
 
 
-void handle_servo_irq_for_slice(int slice)
+void _handle_servo_irq_for_slice(int slice)
 {
     // TODO: this could be made faster (fixed point arithmetic)
 
     // Get the servo associated with this slice
     Servo* servo = registered_servos[slice];
 
-    // Determine how far we are into the _motion
+    // Determine how far we are into the motion
+    // TODO: do we want to add first or last?
     servo->_motion.current_time_us += servo->period_usec;
-    if (servo->_motion.current_time_us > servo->_motion.duration_us)
+    if (servo->_motion.current_time_us >= servo->_motion.duration_us)
     {
         // We have reached the end of the _motion, no more interrupts
         pwm_set_irq_enabled(servo->_pwm_slice, false);
@@ -131,7 +132,7 @@ void handle_servo_irq_for_slice(int slice)
 
     // IMPORTANT: Make sure to use the unprotected function call, otherwise we
     // spin here forever becuase we already have the mutex!
-    set_deg(servo, angle);
+    _set_deg(servo, angle);
 }
 
 void servo_on_pwm_wrap() {
@@ -151,12 +152,12 @@ void servo_on_pwm_wrap() {
             pwm_clear_irq(slice);
 
             // Handle this particular slice
-            handle_servo_irq_for_slice(slice);
+            _handle_servo_irq_for_slice(slice);
         }
     }
 }
 
-void servo_time_to_rad(Servo* servo, float target_rad, unsigned int duration_us, float (*ease_fn)(float))
+void servo_time_to_rad(Servo* servo, float target_rad, unsigned int duration_us, ease_fn_t ease_fn)
 {
     // Wait until we can use the servo
     mutex_enter_blocking(&servo->_mutex);
@@ -183,12 +184,12 @@ void servo_time_to_rad(Servo* servo, float target_rad, unsigned int duration_us,
     // The mutex will be freed by the interrupt handler once the _motion has ended
 }
 
-void servo_time_to_deg(Servo* servo, float target_deg, unsigned int duration_us, float (*ease_fn)(float))
+void servo_time_to_deg(Servo* servo, float target_deg, unsigned int duration_us, ease_fn_t ease_fn)
 {
     servo_time_to_rad(servo, TO_RAD(target_deg), duration_us, ease_fn);
 }
 
-void servo_time_to_rad_wait(Servo* servo, float target_rad, unsigned int duration_us, float (*ease_fn)(float))
+void servo_time_to_rad_wait(Servo* servo, float target_rad, unsigned int duration_us, ease_fn_t ease_fn)
 {
     servo_time_to_rad(servo, target_rad, duration_us, ease_fn);
 
@@ -202,7 +203,7 @@ void servo_time_to_rad_wait(Servo* servo, float target_rad, unsigned int duratio
     mutex_enter_blocking(&servo->_mutex);
     mutex_exit(&servo->_mutex);
 }
-void servo_time_to_deg_wait(Servo* servo, float target_deg, unsigned int duration_us, float (*ease_fn)(float))
+void servo_time_to_deg_wait(Servo* servo, float target_deg, unsigned int duration_us, ease_fn_t ease_fn)
 {
     servo_time_to_rad_wait(servo, TO_RAD(target_deg), duration_us, ease_fn);
 }
